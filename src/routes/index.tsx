@@ -46,15 +46,12 @@ const CONTEXT_DATA = {
 function Index() {
   const [step, setStep] = useState<"search" | "interactions" | "schedule">("search");
   
-  // --- PERSISTÊNCIA DE DADOS ---
   const [query, setQuery] = usePersistentState<string>("interamed-query", "");
   const [selected, setSelected] = usePersistentState<string[]>("interamed-selected", []);
   
-  // --- ESTADOS DA API ---
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // --- ESTADOS NORMAIS ---
   const [hi, setHi] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
@@ -73,13 +70,12 @@ function Index() {
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", up); };
   }, []);
 
-  // --- NAVEGAÇÃO HOME ---
   const handleHome = () => {
     setStep("search");
     setOpen(null);
   };
 
-  // --- BUSCA INTEGRADA COM A ANVISA (COM DEBOUNCE) ---
+  // --- BUSCA INTEGRADA (CORRIGIDA PARA A VERCEL) ---
   useEffect(() => {
     const q = query.trim();
     
@@ -96,22 +92,31 @@ function Index() {
     }
 
     setIsSearching(true);
-    const timer = setTimeout(async () => {
-      const apiResults = await buscarMedicamentosANVISA({ data: q });
-      
-      const apiFormatted = apiResults.map(m => {
-        // Adicionado fallback vazio "" para evitar erro de nulo se a API não retornar nada
-        const nome = m.PRINCIPIO_ATIVO || m.NOME_PRODUTO || "";
-        return nome.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-      });
+    
+    // Função isolada para busca
+    const fetchData = async () => {
+      try {
+        console.log("Buscando na API...", q); // Log para debug no navegador
+        const apiResults = await buscarMedicamentosANVISA({ data: q });
+        console.log("Resultados da API:", apiResults); // Log para debug
 
-      const combined = Array.from(new Set([...localResults, ...apiFormatted]));
-      const finalSuggestions = combined.filter(m => !selected.includes(m)).slice(0, 6);
-      
-      setSuggestions(finalSuggestions);
-      setIsSearching(false);
-    }, 500);
+        const apiFormatted = apiResults.map(m => {
+          const nome = m.PRINCIPIO_ATIVO || m.NOME_PRODUTO || "";
+          return nome.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+        });
 
+        const combined = Array.from(new Set([...localResults, ...apiFormatted]));
+        const finalSuggestions = combined.filter(m => !selected.includes(m)).slice(0, 6);
+        
+        setSuggestions(finalSuggestions);
+      } catch (error) {
+        console.error("Erro no fetch da API:", error);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(fetchData, 500);
     return () => clearTimeout(timer);
   }, [query, selected]);
 
@@ -140,7 +145,6 @@ function Index() {
   const pairs = useMemo(() => {
     if (step === "search" || selected.length === 0) return [];
     const out: Severity[] = [];
-    // Correção do erro de tipo nulo na verificação por pares
     for (let i = 0; i < selected.length; i++) {
       for (let j = i + 1; j < selected.length; j++) {
         const med1 = selected[i];
@@ -223,7 +227,6 @@ function Index() {
     });
   }, [sortedBlocks]);
 
-  // --- CORREÇÃO DO ERRO DE NULO AQUI (Ln 191) ---
   const openEditModal = (blockId: string, currentTime: string) => {
     const timeStr = currentTime || "08:00";
     const parts = timeStr.split(":");
@@ -364,12 +367,10 @@ function Index() {
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, suggestions.length - 1)); }
                   if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-                  // Correção do erro de TS no Enter
                   if (e.key === "Enter") {
                     const selectedSuggestion = suggestions[hi];
                     if (selectedSuggestion) add(selectedSuggestion);
                   }
-                  // Correção do erro de TS no Backspace
                   if (e.key === "Backspace" && !query && selected.length) {
                     const lastItem = selected[selected.length - 1];
                     if (lastItem) remove(lastItem);
