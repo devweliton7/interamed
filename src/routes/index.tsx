@@ -6,7 +6,7 @@ import {
   type Severity
 } from "@/lib/meds";
 import { usePersistentState } from "@/hooks/use-persistent-state";
-import { buscarMedicamentosANVISA } from "../services/anvisa"; // IMPORTANDO A API
+import { buscarMedicamentosANVISA } from "../services/anvisa";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -100,7 +100,8 @@ function Index() {
     // Debounce de 500ms para a API da ANVISA
     setIsSearching(true);
     const timer = setTimeout(async () => {
-      const apiResults = await buscarMedicamentosANVISA(q);
+      // Chamada da Server Function (envia o "q" dentro de um objeto com a chave "data")
+      const apiResults = await buscarMedicamentosANVISA({ data: q });
       
       // Formata os nomes para Title Case (ex: "DIPIRONA SODICA" -> "Dipirona Sodica")
       const apiFormatted = apiResults.map(m => {
@@ -220,7 +221,8 @@ function Index() {
   }, [sortedBlocks]);
 
   const openEditModal = (blockId: string, currentTime: string) => {
-    const [h, m] = currentTime.split(":");
+    // CORREÇÃO DO ERRO DE TYPESCRIPT AQUI (Proteção contra nulo)
+    const [h, m] = (currentTime || "08:00").split(":");
     setTempHour(h || "08");
     setTempMinute(m || "00");
     setEditingBlockId(blockId);
@@ -363,7 +365,6 @@ function Index() {
                 className="w-full rounded-2xl bg-white px-6 py-5 pr-14 text-xl font-medium shadow-sm outline-none transition focus:ring-2 focus:ring-black placeholder:text-gray-400"
               />
               
-              {/* Ícone de Carregamento na Barra de Busca */}
               {isSearching && (
                 <div className="absolute right-5 top-1/2 -translate-y-1/2">
                   <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
