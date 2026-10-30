@@ -75,7 +75,6 @@ function Index() {
     setOpen(null);
   };
 
-  // --- BUSCA INTEGRADA (CORRIGIDA PARA A VERCEL) ---
   useEffect(() => {
     const q = query.trim();
     
@@ -93,12 +92,10 @@ function Index() {
 
     setIsSearching(true);
     
-    // Função isolada para busca
     const fetchData = async () => {
       try {
-        console.log("Buscando na API...", q); // Log para debug no navegador
-        const apiResults = await buscarMedicamentosANVISA({ data: q });
-        console.log("Resultados da API:", apiResults); // Log para debug
+        // Chamada direta à API, sem Server Function
+        const apiResults = await buscarMedicamentosANVISA(q);
 
         const apiFormatted = apiResults.map(m => {
           const nome = m.PRINCIPIO_ATIVO || m.NOME_PRODUTO || "";

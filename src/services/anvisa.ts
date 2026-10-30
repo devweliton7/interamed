@@ -1,5 +1,4 @@
 // src/services/anvisa.ts
-import { createServerFn } from "@tanstack/react-start";
 
 export type MedicamentoANVISA = {
   NOME_PRODUTO: string;
@@ -8,19 +7,22 @@ export type MedicamentoANVISA = {
   PRINCIPIO_ATIVO: string;
 };
 
-export const buscarMedicamentosANVISA = createServerFn({ method: "GET" })
-  .validator((nome: string) => nome)
-  .handler(async ({ data: nome }) => {
-    if (!nome || nome.length < 3) return [];
+// Função pura, sem Server Fn, executada diretamente no navegador
+export async function buscarMedicamentosANVISA(nome: string): Promise<MedicamentoANVISA[]> {
+  if (!nome || nome.length < 3) return [];
 
-    try {
-      const response = await fetch(`https://api-medicamentos-anvisa.vercel.app/${encodeURIComponent(nome)}`);
-      
-      if (!response.ok) return [];
-      const data = await response.json();
-      return Array.isArray(data) ? (data as MedicamentoANVISA[]) : [];
-    } catch (error) {
-      console.error("[ANVISA Server] Erro:", error);
-      return [];
-    }
-  });
+  try {
+    const response = await fetch(`https://api-medicamentos-anvisa.vercel.app/${encodeURIComponent(nome)}`, {
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
+    
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Erro no fetch da API ANVISA:", error);
+    return [];
+  }
+}
