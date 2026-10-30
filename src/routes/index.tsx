@@ -88,28 +88,23 @@ function Index() {
       return;
     }
 
-    // Busca local imediata (para responder rápido)
     const localResults = MEDS.filter((m) => !selected.includes(m) && strip(m).includes(strip(q)));
 
-    // Se tiver menos de 3 letras, mostra só a busca local para economizar requisições
     if (q.length < 3) {
       setSuggestions(localResults.slice(0, 6));
       return;
     }
 
-    // Debounce de 500ms para a API da ANVISA
     setIsSearching(true);
     const timer = setTimeout(async () => {
-      // Chamada da Server Function (envia o "q" dentro de um objeto com a chave "data")
       const apiResults = await buscarMedicamentosANVISA({ data: q });
       
-      // Formata os nomes para Title Case (ex: "DIPIRONA SODICA" -> "Dipirona Sodica")
       const apiFormatted = apiResults.map(m => {
-        const nome = m.PRINCIPIO_ATIVO || m.NOME_PRODUTO;
+        // Adicionado fallback vazio "" para evitar erro de nulo se a API não retornar nada
+        const nome = m.PRINCIPIO_ATIVO || m.NOME_PRODUTO || "";
         return nome.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
       });
 
-      // Combina os resultados locais com os da API, remove duplicatas e limita a 6
       const combined = Array.from(new Set([...localResults, ...apiFormatted]));
       const finalSuggestions = combined.filter(m => !selected.includes(m)).slice(0, 6);
       
@@ -145,8 +140,16 @@ function Index() {
   const pairs = useMemo(() => {
     if (step === "search" || selected.length === 0) return [];
     const out: Severity[] = [];
-    for (let i = 0; i < selected.length; i++)
-      for (let j = i + 1; j < selected.length; j++) out.push(getInteraction(selected[i]!, selected[j]!).severity);
+    // Correção do erro de tipo nulo na verificação por pares
+    for (let i = 0; i < selected.length; i++) {
+      for (let j = i + 1; j < selected.length; j++) {
+        const med1 = selected[i];
+        const med2 = selected[j];
+        if (med1 && med2) {
+          out.push(getInteraction(med1, med2).severity);
+        }
+      }
+    }
     return out;
   }, [selected, step]);
   
@@ -220,11 +223,14 @@ function Index() {
     });
   }, [sortedBlocks]);
 
+  // --- CORREÇÃO DO ERRO DE NULO AQUI (Ln 191) ---
   const openEditModal = (blockId: string, currentTime: string) => {
-    // CORREÇÃO DO ERRO DE TYPESCRIPT AQUI (Proteção contra nulo)
-    const [h, m] = (currentTime || "08:00").split(":");
-    setTempHour(h || "08");
-    setTempMinute(m || "00");
+    const timeStr = currentTime || "08:00";
+    const parts = timeStr.split(":");
+    const h = parts[0] || "08";
+    const m = parts[1] || "00";
+    setTempHour(h);
+    setTempMinute(m);
     setEditingBlockId(blockId);
   };
 
@@ -358,8 +364,16 @@ function Index() {
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, suggestions.length - 1)); }
                   if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-                  if (e.key === "Enter" && suggestions[hi]) add(suggestions[hi]);
-                  if (e.key === "Backspace" && !query && selected.length) remove(selected[selected.length - 1]!);
+                  // Correção do erro de TS no Enter
+                  if (e.key === "Enter") {
+                    const selectedSuggestion = suggestions[hi];
+                    if (selectedSuggestion) add(selectedSuggestion);
+                  }
+                  // Correção do erro de TS no Backspace
+                  if (e.key === "Backspace" && !query && selected.length) {
+                    const lastItem = selected[selected.length - 1];
+                    if (lastItem) remove(lastItem);
+                  }
                 }}
                 placeholder="Buscar medicamento..."
                 className="w-full rounded-2xl bg-white px-6 py-5 pr-14 text-xl font-medium shadow-sm outline-none transition focus:ring-2 focus:ring-black placeholder:text-gray-400"
