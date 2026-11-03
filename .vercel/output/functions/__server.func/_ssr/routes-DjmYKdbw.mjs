@@ -1,7 +1,8 @@
 import { r as __toESM } from "../_runtime.mjs";
 import { n as require_jsx_runtime, r as require_react } from "../_libs/react+tanstack__react-query.mjs";
-import { n as ChevronLeft, r as ChevronDown, t as Clock } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DK9Ez2kg.js
+import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
+import { i as ChevronDown, n as Clock, r as ChevronLeft, t as LoaderCircle } from "../_libs/lucide-react.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DjmYKdbw.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var MEDS = [
@@ -224,24 +225,27 @@ function getInteraction(a, b) {
 		rec: ""
 	};
 }
-function usePersistentState(key, initialValue) {
-	const [state, setState] = (0, import_react.useState)(() => {
-		try {
-			const item = window.localStorage.getItem(key);
-			return item ? JSON.parse(item) : initialValue;
-		} catch (error) {
-			console.warn(`Erro ao ler localStorage key "${key}":`, error);
-			return initialValue;
-		}
+var createSsrRpc = (functionId) => {
+	const url = "/_serverFn/" + functionId;
+	const serverFnMeta = { id: functionId };
+	const fn = async (...args) => {
+		return (await getServerFnById(functionId, { origin: "server" }))(...args);
+	};
+	return Object.assign(fn, {
+		url,
+		serverFnMeta,
+		[TSS_SERVER_FUNCTION]: true
 	});
-	(0, import_react.useEffect)(() => {
-		try {
-			window.localStorage.setItem(key, JSON.stringify(state));
-		} catch (error) {
-			console.warn(`Erro ao salvar localStorage key "${key}":`, error);
-		}
-	}, [key, state]);
-	return [state, setState];
+};
+var buscarNoServidor = createServerFn({ method: "GET" }).inputValidator((nome) => nome).handler(createSsrRpc("c27ed10bba880d5730da9dc2b3d68d0e96bd2af961625492bc33cf9c08cec313"));
+async function buscarMedicamentosANVISA(nome) {
+	if (!nome || nome.length < 3) return [];
+	try {
+		return await buscarNoServidor({ data: nome });
+	} catch (error) {
+		console.error("Erro na busca:", error);
+		return [];
+	}
 }
 var DOT = {
 	grave: "bg-sev-grave",
@@ -271,9 +275,12 @@ var CONTEXT_DATA = {
 	patientName: "Leito 12"
 };
 function Index() {
+	const [mounted, setMounted] = (0, import_react.useState)(false);
 	const [step, setStep] = (0, import_react.useState)("search");
-	const [query, setQuery] = usePersistentState("interamed-query", "");
-	const [selected, setSelected] = usePersistentState("interamed-selected", []);
+	const [query, setQuery] = (0, import_react.useState)("");
+	const [selected, setSelected] = (0, import_react.useState)([]);
+	const [suggestions, setSuggestions] = (0, import_react.useState)([]);
+	const [isSearching, setIsSearching] = (0, import_react.useState)(false);
 	const [hi, setHi] = (0, import_react.useState)(0);
 	const [open, setOpen] = (0, import_react.useState)(null);
 	const [blocks, setBlocks] = (0, import_react.useState)([]);
@@ -283,6 +290,13 @@ function Index() {
 	const [tempHour, setTempHour] = (0, import_react.useState)("08");
 	const [tempMinute, setTempMinute] = (0, import_react.useState)("00");
 	(0, import_react.useEffect)(() => {
+		setMounted(true);
+		try {
+			const savedQuery = localStorage.getItem("interamed-query");
+			const savedSelected = localStorage.getItem("interamed-selected");
+			if (savedQuery) setQuery(JSON.parse(savedQuery));
+			if (savedSelected) setSelected(JSON.parse(savedSelected));
+		} catch (e) {}
 		const up = () => setOnline(navigator.onLine);
 		up();
 		window.addEventListener("online", up);
@@ -292,15 +306,45 @@ function Index() {
 			window.removeEventListener("offline", up);
 		};
 	}, []);
-	const handleHome = () => {
-		setStep("search");
-		setOpen(null);
-	};
-	const suggestions = (0, import_react.useMemo)(() => {
-		const q = strip(query.trim());
-		if (!q) return [];
-		return MEDS.filter((m) => !selected.includes(m) && strip(m).includes(q)).slice(0, 6);
-	}, [query, selected]);
+	(0, import_react.useEffect)(() => {
+		if (mounted) localStorage.setItem("interamed-query", JSON.stringify(query));
+	}, [query, mounted]);
+	(0, import_react.useEffect)(() => {
+		if (mounted) localStorage.setItem("interamed-selected", JSON.stringify(selected));
+	}, [selected, mounted]);
+	(0, import_react.useEffect)(() => {
+		if (!mounted) return;
+		const q = query.trim();
+		if (!q) {
+			setSuggestions([]);
+			return;
+		}
+		const localResults = MEDS.filter((m) => !selected.includes(m) && strip(m).includes(strip(q)));
+		if (q.length < 3) {
+			setSuggestions(localResults.slice(0, 6));
+			return;
+		}
+		setIsSearching(true);
+		const fetchData = async () => {
+			try {
+				const apiFormatted = (await buscarMedicamentosANVISA(q)).map((m) => {
+					return (m.PRINCIPIO_ATIVO || m.NOME_PRODUTO || "").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase());
+				});
+				const combined = Array.from(/* @__PURE__ */ new Set([...localResults, ...apiFormatted]));
+				setSuggestions(combined.filter((m) => !selected.includes(m)).slice(0, 6));
+			} catch (error) {
+				console.error("Erro no fetch:", error);
+			} finally {
+				setIsSearching(false);
+			}
+		};
+		const timer = setTimeout(fetchData, 500);
+		return () => clearTimeout(timer);
+	}, [
+		query,
+		selected,
+		mounted
+	]);
 	const add = (m) => {
 		setSelected((s) => [...s, m]);
 		setQuery("");
@@ -334,7 +378,11 @@ function Index() {
 	const pairs = (0, import_react.useMemo)(() => {
 		if (step === "search" || selected.length === 0) return [];
 		const out = [];
-		for (let i = 0; i < selected.length; i++) for (let j = i + 1; j < selected.length; j++) out.push(getInteraction(selected[i], selected[j]).severity);
+		for (let i = 0; i < selected.length; i++) for (let j = i + 1; j < selected.length; j++) {
+			const med1 = selected[i];
+			const med2 = selected[j];
+			if (med1 && med2) out.push(getInteraction(med1, med2).severity);
+		}
 		return out;
 	}, [selected, step]);
 	const count = (s) => pairs.filter((p) => p === s).length;
@@ -419,9 +467,9 @@ function Index() {
 		});
 	}, [sortedBlocks]);
 	const openEditModal = (blockId, currentTime) => {
-		const [h, m] = currentTime.split(":");
-		setTempHour(h || "08");
-		setTempMinute(m || "00");
+		const parts = (currentTime || "08:00").split(":");
+		setTempHour(parts[0] || "08");
+		setTempMinute(parts[1] || "00");
 		setEditingBlockId(blockId);
 	};
 	const adjustTime = (type, increment) => {
@@ -437,8 +485,7 @@ function Index() {
 	};
 	const handleConfirmTime = () => {
 		if (!editingBlockId) return;
-		const newTime = `${tempHour.padStart(2, "0")}:${tempMinute.padStart(2, "0")}`;
-		updateBlockTime(editingBlockId, newTime);
+		updateBlockTime(editingBlockId, `${tempHour.padStart(2, "0")}:${tempMinute.padStart(2, "0")}`);
 	};
 	const EditTimeAlert = () => {
 		if (!editingBlockId) return null;
@@ -598,15 +645,15 @@ function Index() {
 			})
 		});
 	};
+	if (!mounted) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "min-h-screen bg-[#F9F9F9]" });
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-12 bg-[#F9F9F9] overflow-x-hidden",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
 				className: "mb-8 flex justify-between items-center",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-					onClick: handleHome,
+					onClick: () => setStep("search"),
 					className: "text-4xl font-extrabold tracking-tighter text-black cursor-pointer select-none active:opacity-50 transition-opacity",
-					title: "Voltar ao início",
 					children: "InteraMed"
 				}), step !== "search" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					onClick: () => setStep("search"),
@@ -614,7 +661,7 @@ function Index() {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, {
 						size: 16,
 						strokeWidth: 2.5
-					}), "Editar lista"]
+					}), " Editar lista"]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("main", {
@@ -625,39 +672,46 @@ function Index() {
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "relative",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									ref: inputRef,
-									value: query,
-									onChange: (e) => {
-										setQuery(e.target.value);
-										setHi(0);
-									},
-									onKeyDown: (e) => {
-										if (e.key === "ArrowDown") {
-											e.preventDefault();
-											setHi((h) => Math.min(h + 1, suggestions.length - 1));
-										}
-										if (e.key === "ArrowUp") {
-											e.preventDefault();
-											setHi((h) => Math.max(h - 1, 0));
-										}
-										if (e.key === "Enter" && suggestions[hi]) add(suggestions[hi]);
-										if (e.key === "Backspace" && !query && selected.length) remove(selected[selected.length - 1]);
-									},
-									placeholder: "Buscar medicamento...",
-									className: "w-full rounded-2xl bg-white px-6 py-5 text-xl font-medium shadow-sm outline-none transition focus:ring-2 focus:ring-black placeholder:text-gray-400"
-								}), suggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-									className: "absolute z-20 mt-2 w-full overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-100",
-									children: suggestions.map((m, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										onMouseDown: (e) => {
-											e.preventDefault();
-											add(m);
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										ref: inputRef,
+										value: query,
+										onChange: (e) => {
+											setQuery(e.target.value);
+											setHi(0);
 										},
-										onMouseEnter: () => setHi(i),
-										className: `w-full px-6 py-4 text-left text-lg font-medium ${i === hi ? "bg-gray-100" : ""}`,
-										children: m
-									}) }, m))
-								})]
+										onKeyDown: (e) => {
+											if (e.key === "ArrowDown") {
+												e.preventDefault();
+												setHi((h) => Math.min(h + 1, suggestions.length - 1));
+											}
+											if (e.key === "ArrowUp") {
+												e.preventDefault();
+												setHi((h) => Math.max(h - 1, 0));
+											}
+											if (e.key === "Enter" && suggestions[hi]) add(suggestions[hi]);
+											if (e.key === "Backspace" && !query && selected.length) remove(selected[selected.length - 1]);
+										},
+										placeholder: "Buscar medicamento...",
+										className: "w-full rounded-2xl bg-white px-6 py-5 pr-14 text-xl font-medium shadow-sm outline-none transition focus:ring-2 focus:ring-black placeholder:text-gray-400"
+									}),
+									isSearching && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "absolute right-5 top-1/2 -translate-y-1/2",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "w-6 h-6 animate-spin text-gray-400" })
+									}),
+									suggestions.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+										className: "absolute z-20 mt-2 w-full overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-100",
+										children: suggestions.map((m, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											onMouseDown: (e) => {
+												e.preventDefault();
+												add(m);
+											},
+											onMouseEnter: () => setHi(i),
+											className: `w-full px-6 py-4 text-left text-lg font-medium ${i === hi ? "bg-gray-100" : ""}`,
+											children: m
+										}) }, m))
+									})
+								]
 							}),
 							selected.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "mt-6 flex flex-wrap gap-2",
@@ -759,7 +813,7 @@ function Index() {
 										size: 18,
 										strokeWidth: 2.5,
 										className: "text-black"
-									}), "Gerenciar Horários"]
+									}), " Gerenciar Horários"]
 								})
 							})
 						]

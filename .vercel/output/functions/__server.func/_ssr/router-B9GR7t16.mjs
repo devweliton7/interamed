@@ -1,9 +1,9 @@
 import { n as require_jsx_runtime, t as QueryClientProvider } from "../_libs/react+tanstack__react-query.mjs";
 import { _ as createFileRoute, b as useRouter, d as Scripts, f as HeadContent, g as lazyRouteComponent, h as Outlet, m as createRouter, v as createRootRouteWithContext, y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-DjPqQLD4.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-B9GR7t16.js
 var import_jsx_runtime = require_jsx_runtime();
-var styles_default = "/assets/styles-C4SXoMZ3.css";
+var styles_default = "/assets/styles-B0FWd5Jj.css";
 function NotFoundComponent() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "flex min-h-screen items-center justify-center bg-[#F9F9F9] px-6",
@@ -139,11 +139,11 @@ function RootComponent() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {})
 	});
 }
-var $$splitComponentImporter = () => import("./routes-DK9Ez2kg.mjs");
+var $$splitComponentImporter = () => import("./routes-DjmYKdbw.mjs");
 var rootRouteChildren = { IndexRoute: createFileRoute("/")({
 	head: () => ({ meta: [{ title: "InteraMed — Verificação de interações medicamentosas" }, {
 		name: "description",
-		content: "Verifique interações entre medicamentos em segundos. Feito para enfermagem."
+		content: "Verifique interações entre medicamentos em segundos."
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter, "component")
 }).update({
