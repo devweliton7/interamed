@@ -1,7 +1,7 @@
 // src/routes/index.tsx
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Loader2, Trash2, Search } from "lucide-react";
+import { ChevronLeft, Loader2, Trash2, Search, Terminal } from "lucide-react";
 import { MEDS } from "@/lib/meds";
 import { buscarMedicamentosANVISA } from "../services/anvisa";
 import { useInteractions } from "../hooks/useInteractions";
@@ -147,7 +147,6 @@ function Index() {
               
               {isSearching && <div className="absolute right-4 top-1/2 -translate-y-1/2"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>}
               
-              {/* REQUISITO 1: Botão Limpar Seleção integrado */}
               {!isSearching && selected.length > 0 && (
                 <button 
                   onClick={clearAll} 
@@ -211,12 +210,17 @@ function Index() {
         {step === "results" && (
           <section className="animate-in fade-in slide-in-from-right-8 duration-300 pb-12">
             
-            {/* REQUISITO 2: Badge de Status de Protótipo */}
-            <div className="mb-6 rounded-2xl bg-blue-50/50 p-4 border border-blue-100 flex items-start gap-3">
-              <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">⚡</div>
-              <p className="text-xs text-blue-900 font-medium leading-relaxed">
-                <strong>Ambiente Demonstrativo.</strong> Dados clínicos e do paciente serão injetados via API (SUS/Prontuário) em produção.
-              </p>
+            {/* Badge de Status de Protótipo - Ícone Técnico Refinado */}
+            <div className="mb-6 rounded-2xl bg-white p-4 border border-gray-200/60 shadow-sm flex items-start gap-3">
+              <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0 mt-0.5">
+                <Terminal size={14} strokeWidth={2.5} />
+              </div>
+              <div className="pt-0.5">
+                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+                  <strong className="text-black font-bold uppercase tracking-wider text-[10px] block mb-0.5">Ambiente Demonstrativo</strong> 
+                  Dados clínicos e do paciente serão injetados via API (SUS/Prontuário) em produção.
+                </p>
+              </div>
             </div>
 
             <h2 className="text-2xl font-black tracking-tight text-black">
@@ -240,7 +244,7 @@ function Index() {
               )}
             </div>
 
-            {/* REQUISITO 2: Nota de Arquitetura no Rodapé */}
+            {/* Nota de Arquitetura no Rodapé */}
             <div className="mt-8 pt-6 border-t border-gray-200">
               <p className="text-[10px] text-gray-400 font-medium text-center leading-relaxed">
                 Nota: Os resultados acima simulam a análise em tempo real. Em ambiente hospitalar, o payload é integrado diretamente ao Prontuário Eletrônico.
