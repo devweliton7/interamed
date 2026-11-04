@@ -1,7 +1,7 @@
 // src/routes/index.tsx
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Loader2, Trash2, Search, Terminal, Camera } from "lucide-react";
+import { ChevronLeft, Loader2, Trash2, Search, Terminal, Camera, Clock } from "lucide-react";
 import { MEDS } from "@/lib/meds";
 import { buscarMedicamentosANVISA } from "../services/anvisa";
 import { useInteractions } from "../hooks/useInteractions";
@@ -11,7 +11,7 @@ import { OCRScanner } from "../components/OCRScanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [{ title: "InteraMed" }, { name: "description", content: "Verifique interações." }],
+    meta: [{ title: "InteraMed" }, { name: "description", content: "Verifique interações medicamentosas." }],
   }),
   component: Index,
 });
@@ -30,8 +30,7 @@ function Index() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOcrOpen, setIsOcrOpen] = useState(false);
 
-  // Hook simples e direto
-  const { data: interactionsData, loading: loadingInteractions } = useInteractions(selected);
+  const { interactionsData, loadingInteractions } = useInteractions(selected);
 
   useEffect(() => {
     setMounted(true);
@@ -105,12 +104,24 @@ function Index() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-5 py-10 bg-[#F5F5F7] overflow-x-hidden">
       <header className="mb-8 flex justify-between items-center">
-        <h1 onClick={() => setStep("search")} className="text-3xl font-black tracking-tighter text-black cursor-pointer">InteraMed</h1>
-        {step === "results" && (
-          <button onClick={() => setStep("search")} className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-black shadow-sm">
-            <ChevronLeft size={14} strokeWidth={3} /> Editar
-          </button>
-        )}
+        <h1 onClick={() => setStep("search")} className="text-3xl font-black tracking-tighter text-black cursor-pointer">
+          InteraMed
+        </h1>
+        
+        <div className="flex items-center gap-2">
+          <Link 
+            to="/aprazamento" 
+            className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 shadow-sm hover:bg-blue-100 transition-colors"
+          >
+            <Clock size={14} strokeWidth={2.5} /> Aprazamento
+          </Link>
+          
+          {step === "results" && (
+            <button onClick={() => setStep("search")} className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-black shadow-sm">
+              <ChevronLeft size={14} strokeWidth={3} /> Editar
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="flex-1 w-full">
@@ -134,16 +145,26 @@ function Index() {
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 {isSearching && <Loader2 className="w-5 h-5 animate-spin text-gray-400 mr-2" />}
                 {!isSearching && selected.length > 0 && (
-                  <button onClick={clearAll} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-full"><Trash2 size={18} strokeWidth={2.5} /></button>
+                  <button onClick={clearAll} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-full">
+                    <Trash2 size={18} strokeWidth={2.5} />
+                  </button>
                 )}
-                <button onClick={() => setIsOcrOpen(true)} className="bg-black text-white p-2.5 rounded-xl shadow-sm"><Camera size={18} strokeWidth={2.5} /></button>
+                <button onClick={() => setIsOcrOpen(true)} className="bg-black text-white p-2.5 rounded-xl shadow-sm">
+                  <Camera size={18} strokeWidth={2.5} />
+                </button>
               </div>
 
               {suggestions.length > 0 && (
                 <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-100">
                   {suggestions.map((m, i) => (
                     <li key={m}>
-                      <button onMouseDown={(e) => { e.preventDefault(); add(m); }} onMouseEnter={() => setHi(i)} className={`w-full px-5 py-3 text-left font-medium ${i === hi ? "bg-gray-100" : ""}`}>{m}</button>
+                      <button 
+                        onMouseDown={(e) => { e.preventDefault(); add(m); }} 
+                        onMouseEnter={() => setHi(i)} 
+                        className={`w-full px-5 py-3 text-left font-medium ${i === hi ? "bg-gray-100" : ""}`}
+                      >
+                        {m}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -154,13 +175,17 @@ function Index() {
               <div className="mt-6">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-[10px] font-bold uppercase text-gray-400">Selecionados ({selected.length})</span>
-                  <button onClick={clearAll} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-red-500"><Trash2 size={12} /> Limpar tudo</button>
+                  <button onClick={clearAll} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-red-500">
+                    <Trash2 size={12} /> Limpar tudo
+                  </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selected.map((m) => (
                     <span key={m} className="inline-flex items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-2 text-sm font-bold shadow-sm border border-gray-100">
                       {m}
-                      <button onClick={() => remove(m)} className="rounded-full w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-500">X</button>
+                      <button onClick={() => remove(m)} className="rounded-full w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-500">
+                        X
+                      </button>
                     </span>
                   ))}
                 </div>
@@ -177,30 +202,25 @@ function Index() {
 
         {step === "results" && (
           <section className="animate-in fade-in slide-in-from-right-8 duration-300 pb-12">
-            <div className="mb-6 rounded-2xl bg-white p-4 border border-gray-200/60 shadow-sm flex items-start gap-3">
-              <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0">
-                <Terminal size={14} strokeWidth={2.5} />
-              </div>
-              <div>
-                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                  <strong className="text-black font-bold uppercase tracking-wider text-[10px] block mb-0.5">Ambiente Demonstrativo</strong> 
-                  Dados clínicos serão injetados via API em produção.
-                </p>
-              </div>
-            </div>
-
-            <h2 className="text-2xl font-black tracking-tight text-black">
-              {loadingInteractions ? "Analisando Interações..." : (
-                counts.grave + counts.moderada + counts.leve === 0 ? "Nenhuma interação encontrada" : 
-                [counts.grave && `${counts.grave} graves`, counts.moderada && `${counts.moderada} moderadas`, counts.leve && `${counts.leve} leves`].filter(Boolean).join(", ")
-              )}
-            </h2>
             
-            <div className="mt-6 space-y-4">
+            <div className="mb-8">
+              <h2 className="text-3xl font-black tracking-tighter text-black leading-tight">
+                {loadingInteractions ? "Analisando..." : (
+                  counts.grave > 0 ? `Atenção: ${counts.grave} Risco(s) Grave(s)` : 
+                  counts.moderada > 0 ? `Cuidado: ${counts.moderada} Interação(ões) Moderada(s)` :
+                  "Prescrição Segura"
+                )}
+              </h2>
+              <p className="text-sm text-gray-500 font-medium mt-1">
+                {loadingInteractions ? "Cruzando dados clínicos..." : `Análise de ${selected.length} medicamentos.`}
+              </p>
+            </div>
+            
+            <div className="space-y-2">
               {loadingInteractions ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-3">
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
                   <Loader2 className="w-8 h-8 animate-spin" />
-                  <p className="text-xs font-bold">Cruzando dados ANVISA e FDA...</p>
+                  <p className="text-xs font-bold uppercase tracking-widest">Consultando bases...</p>
                 </div>
               ) : (
                 selected.map((m) => (
@@ -210,12 +230,17 @@ function Index() {
             </div>
 
             {!loadingInteractions && (
-              <>
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                  <p className="text-[10px] text-gray-400 font-medium text-center">Nota: Resultados simulados. Integração com Prontuário Eletrônico em produção.</p>
+              <div className="mt-12">
+                <div className="mb-6 rounded-2xl bg-gray-100/50 p-4 flex items-start gap-3">
+                  <div className="text-gray-400 shrink-0 mt-0.5">
+                    <Terminal size={14} />
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide leading-relaxed">
+                    Dados demonstrativos. Sincronização via ANVISA e OpenFDA ativa em ambiente de produção.
+                  </p>
                 </div>
                 <TransparencyNotice />
-              </>
+              </div>
             )}
           </section>
         )}

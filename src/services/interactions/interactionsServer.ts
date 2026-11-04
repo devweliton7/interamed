@@ -1,6 +1,5 @@
 // src/services/interactions/interactionsServer.ts
 import { createServerFn } from "@tanstack/react-start";
-// 🔑 ESSENCIAL: Importar a função para o build do Nitro não removê-la
 import { checkInteractions } from "./interactionsService";
 
 interface InteractionRequest {
@@ -15,13 +14,18 @@ export const getInteractionsServerFn = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    console.log(`[Server] Recebido pedido de interação para ${data.medicamentos.length} remédios.`);
+    
     try {
       const resultado = await checkInteractions(data.medicamentos);
-      return { status: "sucesso", interacoes: resultado };
-    } catch (error) {
-      console.error("[ServerFn] Erro ao verificar interações:", error);
       return { 
-        status: "erro", 
+        status: "sucesso" as const, 
+        interacoes: resultado 
+      };
+    } catch (error) {
+      console.error("[Server] Erro ao verificar interações:", error);
+      return { 
+        status: "erro" as const, 
         mensagem: "Não foi possível verificar as interações no momento." 
       };
     }

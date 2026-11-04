@@ -2,15 +2,8 @@
 import { normalizeDrugList } from "./normalizeDrug";
 import { fetchDDInterPair } from "./ddinterClient";
 import { findLocalInteraction } from "./localInteractions";
-import {
-  mergeInteraction,
-  type InteractionResult,
-} from "./mergeInteractions";
+import { mergeInteraction, type InteractionResult } from "./mergeInteractions";
 
-/**
- * Timeout seguro: resolve com `fallback` se a promise demorar mais que `ms`.
- * Usado pra impedir que DDInter lento trave a análise inteira.
- */
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
     promise,
@@ -18,10 +11,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
-/**
- * Executa promessas com concorrência limitada.
- * Evita mandar 400+ requests simultâneas pra DDInter e tomar rate-limit (429).
- */
 async function runWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -49,9 +38,9 @@ export async function checkInteractions(
 ): Promise<InteractionResult[]> {
   if (drugNames.length < 2) return [];
 
+  console.log(`[Service] Verificando interações para ${drugNames.length} medicamentos.`);
   const normalized = await normalizeDrugList(drugNames);
 
-  // 1. Monta todos os pares de uma vez (evita loops aninhados com await dentro)
   const pares: Array<{ a: string; b: string }> = [];
   for (let i = 0; i < normalized.length; i++) {
     for (let j = i + 1; j < normalized.length; j++) {
@@ -62,27 +51,27 @@ export async function checkInteractions(
     }
   }
 
-  // 2. Roda em paralelo com concorrência controlada
-  const results = await runWithConcurrency(pares, 5, async (par) => {
-    // Base local primeiro (instantânea) — garante fallback mesmo sem rede
-    const local = findLocalInteraction(par.a, par.b);
+  console.log(`[Service] ${pares.length} pares gerados para verificação.`);
 
-    // DDInter com timeout de 4s. Se falhar, `ddinter` fica null e o merge
-    // usa o que tiver da base local.
+  const results = await runWithConcurrency(pares, 5, async (par) => {
+    const local = findLocalInteraction(par.a, par.b);
     let ddinter = null;
+
     try {
-      ddinter = await withTimeout(
-        fetchDDInterPair(par.a, par.b),
-        4000,
-        null
-      );
+      ddinter = await withTimeout(fetchDDInterPair(par.a, par.b), 4000, null);
+      if (ddinter) {
+        console.log(`[API ✅] ${par.a} × ${par.b} → ${ddinter.severity}`);
+      } else {
+        console.log(`[API ❌] ${par.a} × ${par.b} → timeout/sem resposta (usando base local)`);
+      }
     } catch (err) {
-      console.warn(`[interactionsService] DDInter falhou: ${par.a} × ${par.b}`, err);
+      console.warn(`[API 💥] Erro na chamada DDInter: ${par.a} × ${par.b}`, err);
     }
 
     return mergeInteraction(par.a, par.b, ddinter, local);
   });
 
+  console.log(`[Service] Finalizado. Total de resultados: ${results.length}`);
   return results;
 }
 

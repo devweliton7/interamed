@@ -1,42 +1,40 @@
 // src/hooks/useInteractions.ts
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getInteractionsServerFn } from "../services/interactions/interactionsServer";
-import type { InteractionResult } from "../services/interactions/mergeInteractions";
+import { type InteractionResult } from "../services/interactions/mergeInteractions";
 
 export function useInteractions(drugs: string[]) {
-  const [data, setData] = useState<InteractionResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: ["interactions", drugs],
+    queryFn: async (): Promise<InteractionResult[]> => {
+      if (drugs.length < 2) return [];
+      
+      console.log("📡 [Frontend] Enviando para o servidor:", drugs);
 
-  useEffect(() => {
-    if (drugs.length < 2) {
-      setData([]);
-      setLoading(false);
-      return;
-    }
+      try {
+        const response = await getInteractionsServerFn({
+          data: { medicamentos: drugs },
+        });
 
-    let isMounted = true;
-    setLoading(true);
-    setError(null);
+        console.log("✅ [Frontend] Resposta recebida:", response);
 
-    // Uma única chamada para todos os medicamentos
-    getInteractionsServerFn({ data: { drugs } })
-      .then((res) => {
-        if (isMounted) {
-          setData(res?.interactions || []);
-          setLoading(false);
+        if (response.status === "erro") {
+          throw new Error(response.mensagem);
         }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          console.error(err);
-          setError("Falha ao consultar interações.");
-          setLoading(false);
-        }
-      });
 
-    return () => { isMounted = false; };
-  }, [drugs]);
+        return response.interacoes || [];
+      } catch (error) {
+        console.error("🚨 [Frontend] Erro na chamada do Server Function:", error);
+        throw error;
+      }
+    },
+    enabled: drugs.length >= 2,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  return { data, loading, error };
+  return {
+    interactionsData: query.data,
+    loadingInteractions: query.isLoading || query.isFetching,
+    error: query.error,
+  };
 }
