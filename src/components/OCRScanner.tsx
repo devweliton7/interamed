@@ -66,8 +66,10 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
         setErrorMsg("Nenhum medicamento reconhecido na imagem. Tente novamente.");
       }
     } catch (error) {
-      console.error(error);
-      setErrorMsg("Falha ao processar o documento com a IA.");
+      console.error("Erro capturado no Scanner:", error);
+      // AQUI ESTÁ A MÁGICA: Pega a mensagem amigável que a IA nos enviou
+      const mensagemAmigavel = error instanceof Error ? error.message : "Falha ao processar o documento.";
+      setErrorMsg(mensagemAmigavel);
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -90,7 +92,7 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
           const file = new File([blob], "receita.jpg", { type: "image/jpeg" });
           handleProcessFile(file);
         }
-      }, "image/jpeg", 0.8); // 0.8 de qualidade para não pesar no envio da Vercel
+      }, "image/jpeg", 0.8); 
     }
   };
 

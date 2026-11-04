@@ -10,16 +10,12 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 const strip = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-// Função de extração robusta e direta
-function extrairMedicamentosDoTexto(textoBruto: string): string[] {
-  // Se a IA retornou uma lista separada por \n, isso já está limpo.
-  const linhas = textoBruto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+function extrairMedicamentosDoTexto(listaDeMedicamentos: string[]): string[] {
   const medsEncontrados = new Set<string>();
 
   MEDS.forEach((med) => {
     const medNormalizado = strip(med);
-    // Verifica se o nome do medicamento está em alguma das linhas retornadas
-    if (linhas.some(linha => strip(linha).includes(medNormalizado))) {
+    if (listaDeMedicamentos.some(item => strip(item).includes(medNormalizado))) {
       medsEncontrados.add(med);
     }
   });
@@ -27,7 +23,6 @@ function extrairMedicamentosDoTexto(textoBruto: string): string[] {
   return Array.from(medsEncontrados);
 }
 
-// Otimização: Reduz a imagem para 800px e qualidade 0.6 para não pesar na Groq
 function canvasToBase64(canvas: HTMLCanvasElement): string {
   const MAX_WIDTH = 800;
   let width = canvas.width;
@@ -48,45 +43,49 @@ function canvasToBase64(canvas: HTMLCanvasElement): string {
 }
 
 export async function processarDocumento(file: File): Promise<string[]> {
-  const medicamentosFinais = new Set<string>();
-
   if (file.type === 'application/pdf') {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
     let textoNativoCompleto = '';
 
-    // 1. Tenta ler o texto nativo do PDF (Rápido e Grátis)
+    // 1. Tenta ler o texto nativo do PDF
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       textoNativoCompleto += textContent.items.map((item: any) => item.str).join(' ') + ' ';
     }
 
-    // 2. Aplica a extração no texto nativo
     if (textoNativoCompleto.trim().length > 100) {
-       extrairMedicamentosDoTexto(textoNativoCompleto).forEach(m => medicamentosFinais.add(m));
+       const encontrados = extrairMedicamentosDoTexto(textoNativoCompleto.split(/\s+/));
+       if (encontrados.length > 0) return encontrados;
     }
 
-    // 3. Se a leitura nativa foi falha (achou menos de 20 remédios), usa a IA (Groq)
-    if (medicamentosFinais.size < 20) {
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 }); 
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
+    // 2. Se falhar, usa a IA
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 1.5 }); 
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
 
-        await page.render({ canvasContext: context!, viewport }).promise;
-        
-        const base64 = canvasToBase64(canvas); // Passa pelo otimizador
-        const { texto } = await extrairTextoComGroq({ data: { imageBase64: base64 } });
-        extrairMedicamentosDoTexto(texto).forEach(m => medicamentosFinais.add(m));
+      await page.render({ canvasContext: context!, viewport }).promise;
+      
+      const base64 = canvasToBase64(canvas);
+      const resultado = await extrairTextoComGroq({ data: { imageBase64: base64 } });
+      
+      if (resultado.status === "erro") {
+        throw new Error(resultado.mensagem); // Repassa o erro amigável para a tela
       }
+
+      const encontrados = extrairMedicamentosDoTexto(resultado.medicamentos || []);
+      if (encontrados.length > 0) return encontrados;
     }
+    throw new Error("Nenhum medicamento da base foi encontrado nesta receita.");
+
   } else {
-    // 4. É uma imagem direta (JPG/PNG)
+    // 3. É uma imagem direta
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve) => {
       reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
@@ -94,9 +93,17 @@ export async function processarDocumento(file: File): Promise<string[]> {
     });
     const base64 = await base64Promise;
     
-    const { texto } = await extrairTextoComGroq({ data: { imageBase64: base64 } });
-    extrairMedicamentosDoTexto(texto).forEach(m => medicamentosFinais.add(m));
-  }
+    const resultado = await extrairTextoComGroq({ data: { imageBase64: base64 } });
+    
+    if (resultado.status === "erro") {
+      throw new Error(resultado.mensagem);
+    }
 
-  return Array.from(medicamentosFinais);
+    const encontrados = extrairMedicamentosDoTexto(resultado.medicamentos || []);
+    if (encontrados.length === 0) {
+       throw new Error("A imagem é uma receita, mas os medicamentos não estão no nosso banco de dados.");
+    }
+    
+    return encontrados;
+  }
 }
