@@ -207,7 +207,7 @@ function Index() {
               <h2 className="text-3xl font-black tracking-tighter text-black leading-tight">
                 {loadingInteractions ? "Analisando..." : (
                   counts.grave > 0 ? `Atenção: ${counts.grave} Risco(s) Grave(s)` : 
-                  counts.moderada > 0 ? `Cuidado: ${counts.moderada} Interação(ões) Moderada(s)` :
+                  counts.moderada > 0 ? `Cuidado: ${counts.moderada} Interações Moderadas` :
                   "Prescrição Segura"
                 )}
               </h2>
