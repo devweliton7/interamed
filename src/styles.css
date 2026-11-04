@@ -159,3 +159,33 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+/* ==================================================== */
+/* NOVAS REGRAS MOBILE-FIRST (Adicionadas no final)     */
+/* ==================================================== */
+
+@layer utilities {
+  /* Respeita o notch do iPhone e a barra de gestos inferior */
+  .safe-area-top {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+
+  /* Esconde a barra de rolagem mas mantém o scroll */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Impede que o iOS dê zoom automático quando o usuário clica num input */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}

@@ -21,11 +21,9 @@ function AprazamentoPage() {
   const [horarioSelecionado, setHorarioSelecionado] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Função que sorteia um paciente da nossa base de 120
   const simularRecebimento = () => {
     const pacienteSorteado = BASE_PACIENTES[Math.floor(Math.random() * BASE_PACIENTES.length)];
     setPacienteAtual(pacienteSorteado);
-    // Dá um ID único para cada medicamento para não bugar o React
     setMedicamentos(pacienteSorteado.medicamentos.map((m, i) => ({ ...m, id: `med-${i}` })));
   };
 
@@ -46,79 +44,78 @@ function AprazamentoPage() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-5 py-10 bg-[#F5F5F7]">
+    <div className="mx-auto flex min-h-screen max-w-md flex-col px-4 safe-area-top safe-area-bottom bg-[#F5F5F7] overflow-x-hidden">
       
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-black text-white px-5 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[90%] bg-black text-white px-5 py-3 rounded-full shadow-2xl flex items-center justify-center gap-3 animate-in slide-in-from-top-4 fade-in">
           <CheckCircle2 size={18} className="text-emerald-400" />
-          <span className="text-sm font-bold">{toastMessage}</span>
+          <span className="text-sm font-bold text-center">{toastMessage}</span>
         </div>
       )}
 
-      <header className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate({ to: "/" })} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50">
+      <header className="mb-6 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate({ to: "/" })} className="p-2.5 bg-white rounded-full shadow-sm hover:bg-gray-50 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <ChevronLeft size={20} />
           </button>
-          <h1 className="text-3xl font-black tracking-tighter text-black">Relógio de Interações</h1>
+          <h1 className="text-xl font-black tracking-tighter text-black">Relógio</h1>
         </div>
         
-        {/* BOTÃO PARA SORTEAR OUTRO PACIENTE (Oculto na tela inicial de simulação) */}
         {pacienteAtual && (
           <button 
             onClick={simularRecebimento}
-            className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-full font-bold text-sm hover:bg-blue-100 transition-colors"
+            className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-2 rounded-full font-bold text-xs hover:bg-blue-100 transition-colors min-h-[44px]"
           >
-            <Shuffle size={16} /> Trocar Paciente
+            <Shuffle size={14} /> Trocar
           </button>
         )}
       </header>
 
       {!pacienteAtual ? (
-        <div className="flex flex-col items-center justify-center flex-1 text-center py-20 animate-in fade-in">
-          <div className="bg-white p-8 rounded-[32px] shadow-sm border border-gray-100 max-w-md w-full">
+        <div className="flex flex-col items-center justify-center flex-1 text-center py-10 animate-in fade-in">
+          <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 w-full">
             <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <ClipboardList size={32} />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Integração com Prontuário</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Integração</h2>
             <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-              Simule o recebimento de uma prescrição aleatória da nossa base de 120 pacientes do hospital.
+              Simule a chegada de uma prescrição.
             </p>
             <button 
               onClick={simularRecebimento}
-              className="w-full bg-black text-white font-bold py-4 rounded-full shadow-lg hover:bg-gray-800 transition-all"
+              className="w-full bg-black text-white font-bold py-4 rounded-full shadow-lg hover:bg-gray-800 transition-all min-h-[56px]"
             >
-              Simular Recebimento de Prescrição
+              Simular Recebimento
             </button>
           </div>
         </div>
       ) : (
         <div className="animate-in slide-in-from-bottom-8 duration-500 pb-12">
           
-          <div className="bg-white rounded-[24px] p-5 mb-6 shadow-sm border border-gray-100 flex justify-between items-center">
+          <div className="bg-white rounded-[24px] p-5 mb-4 shadow-sm border border-gray-100 flex justify-between items-center">
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Paciente</p>
-              <h2 className="text-lg font-bold text-black">{pacienteAtual.paciente}</h2>
+              <h2 className="text-base font-bold text-black line-clamp-1">{pacienteAtual.paciente}</h2>
             </div>
-            <div className="text-right">
+            <div className="text-right shrink-0">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Leito</p>
-              <span className="bg-gray-100 px-3 py-1 rounded-full text-xs font-bold">{pacienteAtual.leito}</span>
+              <span className="bg-gray-100 px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap">{pacienteAtual.leito}</span>
             </div>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-[24px] p-5 mb-8 flex gap-4 items-start shadow-sm">
-            <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={24} />
+          <div className="bg-amber-50 border border-amber-200 rounded-[20px] p-4 mb-6 flex gap-3 items-start shadow-sm">
+            <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
             <div>
-              <h3 className="text-sm font-bold text-amber-900">Ajuste Inteligente de Horário</h3>
-              <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                Horários calculados para evitar a proximidade com a <strong className="font-bold">passagem de plantão</strong>. Clique em qualquer horário para ajustar.
+              <h3 className="text-xs font-bold text-amber-900">Ajuste Inteligente</h3>
+              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+                Horários calculados para evitar a <strong className="font-bold">passagem de plantão</strong>. Toque para alterar.
               </p>
             </div>
           </div>
 
-          <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Linha do Tempo Sugerida</h3>
+          <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3">Linha do Tempo</h3>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {medicamentos.map((med) => {
               const horaBase = med.overrideHoraInicio 
                 ? parseInt(med.overrideHoraInicio.split(':')[0]) 
@@ -127,36 +124,32 @@ function AprazamentoPage() {
               const horarios = gerarSugestaoAprazamento(med.frequenciaHoras, med.nome, med.observacao, horaBase);
               
               return (
-                <div key={med.id} className="bg-white rounded-[24px] p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
-                  <div className="flex justify-between items-start mb-6">
+                <div key={med.id} className="bg-white rounded-[24px] p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-gray-100">
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h4 className="text-xl font-black text-gray-900 tracking-tight">{med.nome}</h4>
-                      <p className="text-xs text-gray-500 font-medium mt-1">A cada {med.frequenciaHoras}h • {med.via}</p>
+                      <h4 className="text-lg font-black text-gray-900 tracking-tight leading-none mb-1">{med.nome}</h4>
+                      <p className="text-[11px] text-gray-500 font-medium">A cada {med.frequenciaHoras}h • {med.via}</p>
                     </div>
                     {med.observacao && (
-                      <span className="text-[10px] bg-blue-50 text-blue-600 font-black px-2.5 py-1 rounded-md uppercase tracking-wider">
+                      <span className="text-[9px] bg-blue-50 text-blue-600 font-black px-2 py-1 rounded-md uppercase tracking-wider max-w-[80px] text-center leading-tight">
                         {med.observacao}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                     {horarios.map((h, hIdx) => (
                       <button 
                         key={hIdx} 
                         onClick={() => setMedicamentoEditando({ id: med.id, nome: med.nome })}
-                        className={`group relative flex flex-col items-center justify-center p-4 rounded-[20px] border min-w-[90px] transition-all hover:border-black hover:shadow-md cursor-pointer ${h.alerta ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100 bg-[#F5F5F7]'}`}
+                        className={`shrink-0 flex flex-col items-center justify-center p-3 rounded-[16px] border min-w-[75px] transition-all active:scale-95 ${h.alerta ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100 bg-[#F5F5F7]'}`}
                       >
                         {h.alerta ? (
-                          <Clock size={16} className="text-amber-500 mb-1.5 group-hover:text-black" />
+                          <Clock size={14} className="text-amber-500 mb-1" />
                         ) : (
-                          <CheckCircle2 size={16} className="text-emerald-500 mb-1.5 group-hover:text-black" />
+                          <CheckCircle2 size={14} className="text-emerald-500 mb-1" />
                         )}
-                        <span className="text-lg font-black text-gray-900">{h.hora}</span>
-                        
-                        <span className="absolute -bottom-6 text-[9px] font-bold text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                          Alterar
-                        </span>
+                        <span className="text-base font-black text-gray-900">{h.hora}</span>
                       </button>
                     ))}
                   </div>
@@ -167,23 +160,22 @@ function AprazamentoPage() {
         </div>
       )}
 
-      {/* MODAL DE EDIÇÃO (BOTTOM SHEET APPLE STYLE) */}
       {medicamentoEditando && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] p-6 animate-in slide-in-from-bottom-10">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-md rounded-t-[32px] p-6 animate-in slide-in-from-bottom-10 safe-area-bottom">
             
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-start mb-6">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Ajustar Horário</p>
-                <h3 className="text-2xl font-black tracking-tight text-black">{medicamentoEditando.nome}</h3>
+                <h3 className="text-xl font-black tracking-tight text-black leading-tight">{medicamentoEditando.nome}</h3>
               </div>
-              <button onClick={() => setMedicamentoEditando(null)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+              <button onClick={() => setMedicamentoEditando(null)} className="p-2.5 bg-gray-100 rounded-full hover:bg-gray-200 min-w-[44px] min-h-[44px] flex items-center justify-center">
                 <X size={18} />
               </button>
             </div>
 
             <div className="mb-6">
-              <p className="text-xs font-bold text-gray-500 mb-3 uppercase tracking-wider">Escolha o novo horário:</p>
+              <p className="text-[11px] font-bold text-gray-500 mb-3 uppercase tracking-wider">Escolha o novo horário:</p>
               <div className="flex flex-wrap gap-2">
                 {OPCOES_HORARIO.map((hora) => {
                   const isPlantao = hora.startsWith("06") || hora.startsWith("07") || hora.startsWith("08") || hora.startsWith("18") || hora.startsWith("19") || hora.startsWith("20");
@@ -192,12 +184,12 @@ function AprazamentoPage() {
                     <button
                       key={hora}
                       onClick={() => setHorarioSelecionado(hora)}
-                      className={`px-4 py-2.5 rounded-xl font-bold text-sm border transition-all ${
+                      className={`px-4 py-3 rounded-xl font-bold text-sm border transition-all min-w-[70px] ${
                         horarioSelecionado === hora 
-                          ? "bg-black text-white border-black shadow-md" 
+                          ? "bg-black text-white border-black shadow-md scale-105" 
                           : isPlantao 
-                            ? "bg-amber-50 text-amber-700 border-amber-200 hover:border-amber-400" 
-                            : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300"
+                            ? "bg-amber-50 text-amber-700 border-amber-200" 
+                            : "bg-gray-50 text-gray-700 border-gray-200"
                       }`}
                     >
                       {hora}
@@ -208,10 +200,10 @@ function AprazamentoPage() {
             </div>
 
             {horarioSelecionado && (horarioSelecionado.startsWith("06") || horarioSelecionado.startsWith("07") || horarioSelecionado.startsWith("08") || horarioSelecionado.startsWith("18") || horarioSelecionado.startsWith("19") || horarioSelecionado.startsWith("20")) && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex gap-3 animate-in fade-in">
-                <ShieldAlert className="text-amber-500 shrink-0" size={20} />
-                <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                  <strong>Atenção Operacional:</strong> Este horário coincide com a passagem de plantão. A equipe estará em transição e a administração pode sofrer atrasos.
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-6 flex gap-3 animate-in fade-in">
+                <ShieldAlert className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                  <strong>Atenção:</strong> Este horário coincide com a troca de plantão. Pode haver atrasos na administração.
                 </p>
               </div>
             )}
@@ -219,10 +211,10 @@ function AprazamentoPage() {
             <button 
               onClick={confirmarAlteracao}
               disabled={!horarioSelecionado}
-              className="w-full bg-black text-white font-bold py-4 rounded-full shadow-lg hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              className="w-full bg-black text-white font-bold py-4 rounded-full shadow-lg hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 min-h-[56px] text-lg"
             >
               <CheckCircle2 size={18} />
-              Confirmar Novo Horário
+              Confirmar
             </button>
           </div>
         </div>
