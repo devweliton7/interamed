@@ -35,20 +35,38 @@ function NotFoundComponent() {
   );
 }
 
-// Tela de Erro Genérico
+// Tela de Erro - AGORA COM DEBUG DETALHADO
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  console.error(error);
+  console.error("ERRO CAPTURADO PELO ROOT:", error);
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F9F9F9] px-6">
-      <div className="max-w-md text-center">
+    <div className="flex min-h-screen items-center justify-center bg-[#F9F9F9] px-6 py-12">
+      <div className="max-w-2xl w-full text-center">
         <h1 className="text-xl font-bold tracking-tight text-black">
           Ops, algo deu errado
         </h1>
         <p className="mt-2 text-sm font-medium text-gray-500">
-          Ocorreu um erro inesperado no sistema. Tente novamente ou volte para o início.
+          Ocorreu um erro inesperado no sistema.
         </p>
+        
+        {/* Bloco de debug com o erro real */}
+        <div className="mt-6 text-left bg-white border border-red-200 rounded-xl p-4 shadow-sm overflow-auto">
+          <p className="text-xs font-bold text-red-600 mb-1 uppercase tracking-wider">Mensagem do Erro:</p>
+          <pre className="text-xs text-gray-800 font-mono bg-gray-50 p-3 rounded-lg whitespace-pre-wrap break-words">
+            {error instanceof Error ? error.message : String(error)}
+          </pre>
+          
+          {error instanceof Error && error.stack && (
+            <>
+              <p className="text-xs font-bold text-red-600 mt-3 mb-1 uppercase tracking-wider">Stack Trace:</p>
+              <pre className="text-[10px] text-gray-500 font-mono bg-gray-50 p-3 rounded-lg whitespace-pre-wrap break-words">
+                {error.stack}
+              </pre>
+            </>
+          )}
+        </div>
+
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
@@ -90,7 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" },
-      { rel: "icon", href: "data:," }, // Remove o favicon padrão e deixa a aba limpa
+      { rel: "icon", href: "data:," },
     ],
   }),
   shellComponent: RootShell,

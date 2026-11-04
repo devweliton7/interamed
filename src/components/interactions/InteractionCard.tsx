@@ -25,9 +25,17 @@ export function InteractionCard({ item }: { item: InteractionResult }) {
           <p className="text-[11px] text-gray-600"><span className="font-bold text-gray-900">Conduta: </span>{item.recommendation}</p>
         </div>
       )}
-      <p className="mt-2.5 text-[9px] text-gray-400 font-bold uppercase tracking-wide">
-        Sincronizado com as bases oficiais da ANVISA e FDA
-      </p>
+      
+      {/* Base de dados sincronizada + micro-indicador */}
+      <div className="mt-2.5 flex items-center gap-1.5">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">
+          Base de dados sincronizada via ANVISA & FDA
+        </p>
+      </div>
     </div>
   );
 }
