@@ -11,10 +11,7 @@ import { OCRScanner } from "../components/OCRScanner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: "InteraMed — Verificação de interações" },
-      { name: "description", content: "Verifique interações medicamentosas com precisão." },
-    ],
+    meta: [{ title: "InteraMed" }, { name: "description", content: "Verifique interações." }],
   }),
   component: Index,
 });
@@ -31,11 +28,10 @@ function Index() {
   const [isSearching, setIsSearching] = useState(false);
   const [hi, setHi] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Estado do OCR
   const [isOcrOpen, setIsOcrOpen] = useState(false);
 
-  const { data: interactionsData, loading: loadingInteractions } = useInteractions(selected);
+  // O hook agora retorna o progresso do processamento
+  const { data: interactionsData, loading: loadingInteractions, progress } = useInteractions(selected);
 
   useEffect(() => {
     setMounted(true);
@@ -74,7 +70,6 @@ function Index() {
         const combined = Array.from(new Set([...localResults, ...apiFormatted]));
         setSuggestions(combined.filter(m => !selected.includes(m)).slice(0, 6));
       } catch (error) {
-        console.error("Erro no fetch:", error);
       } finally {
         setIsSearching(false);
       }
@@ -86,19 +81,12 @@ function Index() {
 
   const add = (m: string) => { 
     if (!selected.includes(m)) setSelected((s) => [...s, m]); 
-    setQuery(""); 
-    setHi(0); 
-    inputRef.current?.focus(); 
+    setQuery(""); setHi(0); inputRef.current?.focus(); 
   };
   
   const remove = (m: string) => setSelected((s) => s.filter((x) => x !== m));
   const clearAll = () => setSelected([]);
-
-  // Função que recebe a lista de medicamentos do Scanner
-  const handleOcrExtract = (meds: string[]) => {
-    setSelected(prev => Array.from(new Set([...prev, ...meds])));
-  };
-
+  const handleOcrExtract = (meds: string[]) => setSelected(prev => Array.from(new Set([...prev, ...meds])));
   const verify = () => setStep("results");
 
   const getCounts = () => {
@@ -117,11 +105,9 @@ function Index() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-5 py-10 bg-[#F5F5F7] overflow-x-hidden">
       <header className="mb-8 flex justify-between items-center">
-        <h1 onClick={() => setStep("search")} className="text-3xl font-black tracking-tighter text-black cursor-pointer select-none active:opacity-50 transition-opacity">
-          InteraMed
-        </h1>
+        <h1 onClick={() => setStep("search")} className="text-3xl font-black tracking-tighter text-black cursor-pointer">InteraMed</h1>
         {step === "results" && (
-          <button onClick={() => setStep("search")} className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-black shadow-sm hover:bg-gray-50 transition-colors">
+          <button onClick={() => setStep("search")} className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-black shadow-sm">
             <ChevronLeft size={14} strokeWidth={3} /> Editar
           </button>
         )}
@@ -130,11 +116,9 @@ function Index() {
       <main className="flex-1 w-full">
         {step === "search" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-            
             <div className="relative">
               <input
-                ref={inputRef} 
-                value={query} 
+                ref={inputRef} value={query} 
                 onChange={(e) => { setQuery(e.target.value); setHi(0); }}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, suggestions.length - 1)); }
@@ -143,37 +127,23 @@ function Index() {
                   if (e.key === "Backspace" && !query && selected.length) remove(selected[selected.length - 1]!);
                 }}
                 placeholder="Buscar ou escanear receita..."
-                className="w-full rounded-2xl bg-white pl-12 pr-28 py-4 text-lg font-medium shadow-sm outline-none transition focus:ring-2 focus:ring-black placeholder:text-gray-400"
+                className="w-full rounded-2xl bg-white pl-12 pr-28 py-4 text-lg font-medium shadow-sm outline-none focus:ring-2 focus:ring-black"
               />
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
               
-              {/* Área dos botões à direita */}
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 {isSearching && <Loader2 className="w-5 h-5 animate-spin text-gray-400 mr-2" />}
-                
                 {!isSearching && selected.length > 0 && (
-                  <button onClick={clearAll} className="text-gray-400 hover:text-red-500 transition-colors bg-gray-50 hover:bg-red-50 p-2 rounded-full" title="Limpar Seleção">
-                    <Trash2 size={18} strokeWidth={2.5} />
-                  </button>
+                  <button onClick={clearAll} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-full"><Trash2 size={18} strokeWidth={2.5} /></button>
                 )}
-
-                {/* Botão de OCR */}
-                <button 
-                  onClick={() => setIsOcrOpen(true)} 
-                  className="bg-black text-white hover:bg-gray-800 transition-colors p-2.5 rounded-xl shadow-sm active:scale-95"
-                  title="Escanear Receita"
-                >
-                  <Camera size={18} strokeWidth={2.5} />
-                </button>
+                <button onClick={() => setIsOcrOpen(true)} className="bg-black text-white p-2.5 rounded-xl shadow-sm"><Camera size={18} strokeWidth={2.5} /></button>
               </div>
 
               {suggestions.length > 0 && (
                 <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl bg-white shadow-xl border border-gray-100">
                   {suggestions.map((m, i) => (
                     <li key={m}>
-                      <button onMouseDown={(e) => { e.preventDefault(); add(m); }} onMouseEnter={() => setHi(i)} className={`w-full px-5 py-3 text-left text-base font-medium transition-colors ${i === hi ? "bg-gray-100" : "hover:bg-gray-50"}`}>
-                        {m}
-                      </button>
+                      <button onMouseDown={(e) => { e.preventDefault(); add(m); }} onMouseEnter={() => setHi(i)} className={`w-full px-5 py-3 text-left font-medium ${i === hi ? "bg-gray-100" : ""}`}>{m}</button>
                     </li>
                   ))}
                 </ul>
@@ -183,16 +153,14 @@ function Index() {
             {selected.length > 0 && (
               <div className="mt-6">
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Selecionados ({selected.length})</span>
-                  <button onClick={clearAll} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-red-500 transition-colors">
-                    <Trash2 size={12} strokeWidth={2.5} /> Limpar tudo
-                  </button>
+                  <span className="text-[10px] font-bold uppercase text-gray-400">Selecionados ({selected.length})</span>
+                  <button onClick={clearAll} className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-red-500"><Trash2 size={12} /> Limpar tudo</button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selected.map((m) => (
-                    <span key={m} className="inline-flex items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-2 text-sm font-bold shadow-sm border border-gray-100 animate-in zoom-in-95">
+                    <span key={m} className="inline-flex items-center gap-2 rounded-full bg-white py-1.5 pl-4 pr-2 text-sm font-bold shadow-sm border border-gray-100">
                       {m}
-                      <button onClick={() => remove(m)} className="rounded-full w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-black transition-colors">X</button>
+                      <button onClick={() => remove(m)} className="rounded-full w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-500">X</button>
                     </span>
                   ))}
                 </div>
@@ -200,8 +168,8 @@ function Index() {
             )}
 
             {selected.length >= 2 && (
-              <button onClick={verify} className="mt-8 w-full rounded-full bg-black px-6 py-4 text-base font-bold text-white transition active:scale-[0.98] shadow-lg shadow-black/10 flex items-center justify-center gap-2 animate-in slide-in-from-bottom-4">
-                Verificar Interações
+              <button onClick={verify} className="mt-8 w-full rounded-full bg-black px-6 py-4 font-bold text-white shadow-lg flex justify-center gap-2">
+                Verificar {selected.length} Interações
               </button>
             )}
           </div>
@@ -210,54 +178,56 @@ function Index() {
         {step === "results" && (
           <section className="animate-in fade-in slide-in-from-right-8 duration-300 pb-12">
             <div className="mb-6 rounded-2xl bg-white p-4 border border-gray-200/60 shadow-sm flex items-start gap-3">
-              <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0">
                 <Terminal size={14} strokeWidth={2.5} />
               </div>
-              <div className="pt-0.5">
+              <div>
                 <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
                   <strong className="text-black font-bold uppercase tracking-wider text-[10px] block mb-0.5">Ambiente Demonstrativo</strong> 
-                  Dados clínicos e do paciente serão injetados via API (SUS/Prontuário) em produção.
+                  Dados clínicos serão injetados via API em produção.
                 </p>
               </div>
             </div>
 
             <h2 className="text-2xl font-black tracking-tight text-black">
-              {loadingInteractions ? "Analisando..." : (
+              {loadingInteractions ? `Analisando (${progress}%)...` : (
                 counts.grave + counts.moderada + counts.leve === 0 ? "Nenhuma interação encontrada" : 
                 [counts.grave && `${counts.grave} graves`, counts.moderada && `${counts.moderada} moderadas`, counts.leve && `${counts.leve} leves`].filter(Boolean).join(", ")
               )}
             </h2>
-            <p className="mt-1 text-xs text-gray-500 font-medium">{selected.length} fármacos verificados</p>
             
+            {/* SKELETON LOADER FLUIDO */}
             <div className="mt-6 space-y-4">
-              {loadingInteractions ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-3">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                  <p className="text-xs font-bold">Cruzando dados ANVISA e FDA...</p>
-                </div>
-              ) : (
-                selected.map((m) => (
-                  <MedicationCard key={m} primaryDrug={m} interactions={interactionsData || []} />
-                ))
-              )}
+              {selected.map((m) => {
+                // Verifica se os dados desse medicamento já chegaram no lote
+                const hasDataArrived = interactionsData.some(i => i.drugA === m || i.drugB === m);
+                
+                if (!hasDataArrived && loadingInteractions) {
+                  return (
+                    <div key={m} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 animate-pulse">
+                      <div className="h-6 bg-gray-200 rounded w-1/3 mb-3"></div>
+                      <div className="h-20 bg-gray-100 rounded-xl"></div>
+                    </div>
+                  );
+                }
+                
+                return <MedicationCard key={m} primaryDrug={m} interactions={interactionsData} />;
+              })}
             </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <p className="text-[10px] text-gray-400 font-medium text-center leading-relaxed">
-                Nota: Os resultados acima simulam a análise em tempo real. Em ambiente hospitalar, o payload é integrado diretamente ao Prontuário Eletrônico.
-              </p>
-            </div>
-            
-            <TransparencyNotice />
+            {!loadingInteractions && (
+              <>
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <p className="text-[10px] text-gray-400 font-medium text-center">Nota: Resultados simulados. Integração com Prontuário Eletrônico em produção.</p>
+                </div>
+                <TransparencyNotice />
+              </>
+            )}
           </section>
         )}
       </main>
 
-      <OCRScanner 
-        isOpen={isOcrOpen} 
-        onClose={() => setIsOcrOpen(false)} 
-        onExtract={handleOcrExtract} 
-      />
+      <OCRScanner isOpen={isOcrOpen} onClose={() => setIsOcrOpen(false)} onExtract={handleOcrExtract} />
     </div>
   );
 }
