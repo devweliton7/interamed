@@ -11,18 +11,10 @@ export default defineConfig({
       projects: ["./tsconfig.json"],
     }),
     tailwindcss(),
+    nitro(),
     tanstackStart({
       server: { entry: "server" },
     }),
     viteReact(),
-    // A configuração explícita é o que resolve o problema.
-    nitro({
-      preset: "vercel",
-      output: {
-        dir: ".vercel/output",
-        serverDir: ".vercel/output/functions/__server.func",
-        publicDir: ".vercel/output/static",
-      },
-    }),
   ],
 });

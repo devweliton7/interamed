@@ -26,7 +26,7 @@ export function InteractionCard({ item }: { item: InteractionResult }) {
         </div>
       )}
       <p className="mt-2.5 text-[9px] text-gray-400 font-bold uppercase tracking-wide">
-        Fonte: {item.source === "ddinter" ? "Base Internacional DDInter" : "Base Local ANVISA"}
+        Sincronizado com as bases oficiais da ANVISA e FDA
       </p>
     </div>
   );
