@@ -1,7 +1,6 @@
-// api/interactions.ts
-
+// src/api/interactions.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { checkInteractions } from "../src/services/interactions/interactionsService";
+import { checkInteractions } from "../services/interactions/interactionsService";
 
 export default async function handler(
   req: VercelRequest,
@@ -20,7 +19,6 @@ export default async function handler(
 
   try {
     const interactions = await checkInteractions(drugs);
-    // Cache de 1 hora no edge da Vercel (opcional)
     res.setHeader("Cache-Control", "s-maxage=3600, stale-while-revalidate");
     return res.status(200).json({ interactions });
   } catch (err) {

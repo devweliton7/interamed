@@ -1,3 +1,4 @@
+// src/lib/meds.ts
 export type Severity = "grave" | "moderada" | "leve" | "nenhuma" | "semdado";
 
 export const MEDS = [
@@ -35,7 +36,6 @@ const RAW: [string, string, Info][] = [
 ];
 
 const MAP = new Map(RAW.map(([a, b, i]) => [key(a, b), i]));
-// Pares sem dado (simulado)
 const NO_DATA = new Set([key("Amoxicilina", "Metformina"), key("Prednisona", "Sinvastatina")]);
 
 export function getInteraction(a: string, b: string): { severity: Severity; desc: string; rec: string } {
@@ -50,6 +50,7 @@ export const interacts = (a: string, b: string) => {
   return s === "grave" || s === "moderada" || s === "leve";
 };
 
+// --- LÓGICA DE HORÁRIOS RESTAURADA ---
 export type Slot = { id: string; minutes: number; meds: string[] };
 
 export const toHHMM = (m: number) =>

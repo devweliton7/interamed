@@ -1,5 +1,4 @@
 // src/services/interactions/mergeInteractions.ts
-
 import type { DDInterInteraction } from "./ddinterClient";
 import type { LocalInteraction } from "./localInteractions";
 
@@ -15,6 +14,7 @@ export type InteractionResult = {
   drugB: string;
   severity: InteractionSeverity;
   description: string;
+  recommendation?: string;
   source: "ddinter" | "local" | "nenhuma";
   confidence: "alta" | "media" | "baixa";
   mechanism?: string;
@@ -27,12 +27,14 @@ export function mergeInteraction(
   ddinter: DDInterInteraction | null,
   local: LocalInteraction | null
 ): InteractionResult {
+  // 1. API (DDInter) tem prioridade
   if (ddinter && ddinter.severity !== "Unknown") {
     return {
       drugA,
       drugB,
       severity: mapDDInterSeverity(ddinter.severity),
-      description: ddinter.description ?? "Interação identificada no DDInter.",
+      description: ddinter.description ?? "Interação identificada nas bases internacionais.",
+      recommendation: "Consultar protocolo institucional.",
       source: "ddinter",
       confidence: ddinter.evidenceLevel ? "alta" : "media",
       mechanism: ddinter.mechanism,
@@ -40,23 +42,26 @@ export function mergeInteraction(
     };
   }
 
+  // 2. Base local (meds.ts)
   if (local) {
     return {
       drugA,
       drugB,
       severity: local.severity,
       description: local.description,
+      recommendation: local.recommendation,
       source: "local",
       confidence: "media",
     };
   }
 
+  // 3. Fallback
   return {
     drugA,
     drugB,
     severity: "nao_verificada",
-    description:
-      "Nenhuma interação conhecida nas bases consultadas. Isso não garante ausência de risco.",
+    description: "Nenhuma interação conhecida nas bases consultadas.",
+    recommendation: "Consultar o farmacêutico. A ausência de dados não garante segurança.",
     source: "nenhuma",
     confidence: "baixa",
   };
