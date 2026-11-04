@@ -30,8 +30,8 @@ function Index() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isOcrOpen, setIsOcrOpen] = useState(false);
 
-  // O hook agora retorna o progresso do processamento
-  const { data: interactionsData, loading: loadingInteractions, progress } = useInteractions(selected);
+  // Hook simples e direto
+  const { data: interactionsData, loading: loadingInteractions } = useInteractions(selected);
 
   useEffect(() => {
     setMounted(true);
@@ -190,29 +190,23 @@ function Index() {
             </div>
 
             <h2 className="text-2xl font-black tracking-tight text-black">
-              {loadingInteractions ? `Analisando (${progress}%)...` : (
+              {loadingInteractions ? "Analisando Interações..." : (
                 counts.grave + counts.moderada + counts.leve === 0 ? "Nenhuma interação encontrada" : 
                 [counts.grave && `${counts.grave} graves`, counts.moderada && `${counts.moderada} moderadas`, counts.leve && `${counts.leve} leves`].filter(Boolean).join(", ")
               )}
             </h2>
             
-            {/* SKELETON LOADER FLUIDO */}
             <div className="mt-6 space-y-4">
-              {selected.map((m) => {
-                // Verifica se os dados desse medicamento já chegaram no lote
-                const hasDataArrived = interactionsData.some(i => i.drugA === m || i.drugB === m);
-                
-                if (!hasDataArrived && loadingInteractions) {
-                  return (
-                    <div key={m} className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 animate-pulse">
-                      <div className="h-6 bg-gray-200 rounded w-1/3 mb-3"></div>
-                      <div className="h-20 bg-gray-100 rounded-xl"></div>
-                    </div>
-                  );
-                }
-                
-                return <MedicationCard key={m} primaryDrug={m} interactions={interactionsData} />;
-              })}
+              {loadingInteractions ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <p className="text-xs font-bold">Cruzando dados ANVISA e FDA...</p>
+                </div>
+              ) : (
+                selected.map((m) => (
+                  <MedicationCard key={m} primaryDrug={m} interactions={interactionsData || []} />
+                ))
+              )}
             </div>
 
             {!loadingInteractions && (
