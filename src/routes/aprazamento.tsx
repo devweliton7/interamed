@@ -1,7 +1,7 @@
 // src/routes/aprazamento.tsx
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronLeft, ClipboardList, AlertCircle, Clock, CheckCircle2, ShieldAlert, X, Shuffle } from "lucide-react";
+import { ChevronLeft, AlertCircle, Clock, CheckCircle2, ShieldAlert, X, Shuffle, Terminal } from "lucide-react";
 import { gerarSugestaoAprazamento } from "../lib/aprazamento";
 import { BASE_PACIENTES, type PacienteMock } from "../lib/mockDatabase";
 
@@ -73,14 +73,18 @@ function AprazamentoPage() {
 
       {!pacienteAtual ? (
         <div className="flex flex-col items-center justify-center flex-1 text-center py-10 animate-in fade-in">
-          <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-100 w-full">
-            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ClipboardList size={32} />
+          
+          {/* CARD IOS RESGATADO */}
+          <div className="bg-white p-8 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 w-full max-w-sm">
+            <div className="w-16 h-16 bg-white border border-gray-100 shadow-sm text-black rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <Terminal size={28} strokeWidth={2} />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Integração</h2>
-            <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-              Simule a chegada de uma prescrição.
+
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Integração com Prontuário</h2>
+            <p className="text-sm text-gray-500 mb-8 leading-relaxed font-medium">
+              O aprazamento é o "delivery" da interação. Para mostrar como o horário afeta a segurança, simule a chegada de uma prescrição.
             </p>
+            
             <button 
               onClick={simularRecebimento}
               className="w-full bg-black text-white font-bold py-4 rounded-full shadow-lg hover:bg-gray-800 transition-all min-h-[56px]"
@@ -88,6 +92,7 @@ function AprazamentoPage() {
               Simular Recebimento
             </button>
           </div>
+
         </div>
       ) : (
         <div className="animate-in slide-in-from-bottom-8 duration-500 pb-12">

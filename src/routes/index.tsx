@@ -204,7 +204,6 @@ function Index() {
         {step === "results" && (
           <section className="animate-in fade-in slide-in-from-right-8 duration-300 pb-12">
             
-            {/* 🔑 AVISO DE AMBIENTE DEMONSTRATIVO MOVIDO PARA O TOPO */}
             <div className="mb-6 rounded-2xl bg-white p-4 border border-gray-200/60 shadow-sm flex items-start gap-3">
               <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0">
                 <Terminal size={14} strokeWidth={2.5} />
@@ -218,15 +217,15 @@ function Index() {
             </div>
 
             <div className="mb-8">
-              <h2 className="text-3xl font-black tracking-tighter text-black leading-tight">
+              <h2 className="text-2xl font-black tracking-tighter text-black leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
                 {loadingInteractions ? "Analisando..." : (
                   counts.grave > 0 
-                    ? `Atenção: ${counts.grave} Risco(s) Grave(s)` 
+                    ? `Alerta: ${counts.grave} Risco(s) Grave(s)` 
                     : counts.moderada > 0 
-                      ? (counts.moderada === 1 ? "Cuidado: 1 Interação Moderada" : `Cuidado: ${counts.moderada} Interações Moderadas`)
+                      ? `Alerta: ${counts.moderada} Interações Moderadas`
                       : counts.leve > 0
-                        ? (counts.leve === 1 ? "Atenção: 1 Interação Leve" : `Atenção: ${counts.leve} Interações Leves`)
-                        : "Nenhuma interação encontrada"
+                        ? `Alerta: ${counts.leve} Interações Leves`
+                        : "Prescrição Segura"
                 )}
               </h2>
               <p className="text-sm text-gray-500 font-medium mt-1">
@@ -249,7 +248,6 @@ function Index() {
 
             {!loadingInteractions && (
               <div className="mt-12">
-                {/* Nota de rodapé discreta */}
                 <div className="mb-6 text-center">
                   <p className="text-[10px] text-gray-400 font-medium">
                     Nota: Resultados simulados. Integração com Prontuário Eletrônico em produção.
