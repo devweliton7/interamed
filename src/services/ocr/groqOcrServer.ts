@@ -10,7 +10,7 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
   .validator((data: unknown) => schema.parse(data))
   .handler(async ({ data }) => {
     const apiKey = process.env.GROQ_API_KEY; 
-    if (!apiKey) throw new Error("GROQ_API_KEY não configurada no ambiente.");
+    if (!apiKey) throw new Error("GROQ_API_KEY não configurada.");
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -22,11 +22,15 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
         model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [
           {
+            role: "system",
+            content: "Você é um especialista em leitura de receitas médicas. Sua única função é extrair os nomes dos medicamentos."
+          },
+          {
             role: "user",
             content: [
               { 
                 type: "text", 
-                text: "Extraia o texto desta receita médica. Retorne apenas os nomes dos medicamentos e suas dosagens, um por linha. Sem comentários." 
+                text: "Esta imagem é uma receita médica em formato de tabela. Ignore as colunas de data, paciente, posologia e quantidade. Liste APENAS os medicamentos que estão na coluna 'MEDICAMENTO / CONCENTRAÇÃO'. Retorne um por linha, sem numeração, sem dosagens e sem textos extras." 
               },
               { 
                 type: "image_url", 
@@ -35,15 +39,14 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
             ],
           },
         ],
-        temperature: 0.1,
-        max_tokens: 1500,
+        temperature: 0.1, // Quase zero para não inventar nada
+        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Erro na API da Groq:", errorText);
-      throw new Error(`Falha na Groq: ${response.status}`);
+      throw new Error(`Falha na Groq: ${response.status} - ${errorText}`);
     }
 
     const json = await response.json();

@@ -10,9 +10,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 const strip = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+// Limpeza agressiva do texto para isolar os medicamentos
 function extrairMedicamentosDoTexto(textoBruto: string): string[] {
-  const textoLimpo = textoBruto.replace(/\n/g, " ").replace(/[.,;:]/g, " ");
-  const palavras = textoLimpo.split(/\s+/);
+  // Remove tudo que não for letra ou espaço
+  const apenasLetras = textoBruto.replace(/[^a-zA-ZÀ-ÿ\s]/g, ' ');
+  const palavras = apenasLetras.split(/\s+/).filter(p => p.length > 3);
   const medsEncontrados = new Set<string>();
 
   MEDS.forEach((med) => {
@@ -26,8 +28,7 @@ function extrairMedicamentosDoTexto(textoBruto: string): string[] {
 }
 
 function canvasToBase64(canvas: HTMLCanvasElement): string {
-  // Reduzimos a qualidade para 0.7 para não estourar o limite da Vercel (4.5MB)
-  return canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
+  return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
 }
 
 export async function processarDocumento(file: File): Promise<string[]> {
@@ -39,17 +40,19 @@ export async function processarDocumento(file: File): Promise<string[]> {
     
     let textoNativoCompleto = '';
 
-    // 1. Tenta ler o texto nativo (se for PDF de sistema, é instantâneo)
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       textoNativoCompleto += textContent.items.map((item: any) => item.str).join(' ') + ' ';
     }
 
+    // Se o texto for grande, tenta extrair via PDF.js primeiro
     if (textoNativoCompleto.trim().length > 100) {
        extrairMedicamentosDoTexto(textoNativoCompleto).forEach(m => medicamentosFinais.add(m));
-    } else {
-      // 2. Se for PDF escaneado, envia as páginas para a IA
+    } 
+    
+    // Se não achou nada (ou se é PDF escaneado), joga pra IA
+    if (medicamentosFinais.size < 5) {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 1.5 }); 
@@ -66,7 +69,6 @@ export async function processarDocumento(file: File): Promise<string[]> {
       }
     }
   } else {
-    // 3. Se for imagem (JPG/PNG)
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve) => {
       reader.onloadend = () => resolve((reader.result as string).split(",")[1]);

@@ -19,7 +19,7 @@ export function useInteractions(drugs: string[]) {
     setLoading(true);
     setError(null);
 
-    // Chamada única com todos os remédios
+    // Uma única chamada para todos os medicamentos
     getInteractionsServerFn({ data: { drugs } })
       .then((res) => {
         if (isMounted) {
@@ -35,9 +35,7 @@ export function useInteractions(drugs: string[]) {
         }
       });
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [drugs]);
 
   return { data, loading, error };
