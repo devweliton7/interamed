@@ -23,14 +23,14 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
         messages: [
           {
             role: "system",
-            content: "Você é um especialista em leitura de receitas médicas. Sua única função é extrair os nomes dos medicamentos."
+            content: "Você é um extrator de dados de receitas médicas. Você deve retornar APENAS um objeto JSON válido, sem markdown, sem texto antes ou depois."
           },
           {
             role: "user",
             content: [
               { 
                 type: "text", 
-                text: "Esta imagem é uma receita médica em formato de tabela. Ignore as colunas de data, paciente, posologia e quantidade. Liste APENAS os medicamentos que estão na coluna 'MEDICAMENTO / CONCENTRAÇÃO'. Retorne um por linha, sem numeração, sem dosagens e sem textos extras." 
+                text: "Extraia TODOS os medicamentos da coluna 'MEDICAMENTO / CONCENTRAÇÃO' desta tabela. Retorne no formato: { \"medicamentos\": [\"Digoxina\", \"Furosemida\", ...] }. Não pule nenhum item. A tabela tem 29 itens." 
               },
               { 
                 type: "image_url", 
@@ -39,16 +39,25 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
             ],
           },
         ],
-        temperature: 0.1, // Quase zero para não inventar nada
-        max_tokens: 2000,
+        temperature: 0.1,
+        max_tokens: 4000, // Aumentado para garantir que todos os 29 caibam
+        response_format: { type: "json_object" } // FORÇA A SAÍDA EM JSON
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Falha na Groq: ${response.status} - ${errorText}`);
+      throw new Error(`Falha na Groq: ${response.status}`);
     }
 
     const json = await response.json();
-    return { texto: json.choices?.[0]?.message?.content || "" };
+    const content = json.choices?.[0]?.message?.content || "{}";
+    
+    try {
+      const parsed = JSON.parse(content);
+      // Retorna a lista como string separada por quebra de linha para o parser antigo
+      return { texto: (parsed.medicamentos || []).join("\n") };
+    } catch (e) {
+      // Fallback se o JSON falhar
+      return { texto: content };
+    }
   });

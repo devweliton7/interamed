@@ -10,16 +10,16 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 const strip = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-// Limpeza agressiva do texto para isolar os medicamentos
+// Função de extração robusta e direta
 function extrairMedicamentosDoTexto(textoBruto: string): string[] {
-  // Remove tudo que não for letra ou espaço
-  const apenasLetras = textoBruto.replace(/[^a-zA-ZÀ-ÿ\s]/g, ' ');
-  const palavras = apenasLetras.split(/\s+/).filter(p => p.length > 3);
+  // Se a IA retornou uma lista separada por \n, isso já está limpo.
+  const linhas = textoBruto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const medsEncontrados = new Set<string>();
 
   MEDS.forEach((med) => {
     const medNormalizado = strip(med);
-    if (palavras.some(p => strip(p).includes(medNormalizado))) {
+    // Verifica se o nome do medicamento está em alguma das linhas retornadas
+    if (linhas.some(linha => strip(linha).includes(medNormalizado))) {
       medsEncontrados.add(med);
     }
   });
@@ -27,8 +27,24 @@ function extrairMedicamentosDoTexto(textoBruto: string): string[] {
   return Array.from(medsEncontrados);
 }
 
+// Otimização: Reduz a imagem para 800px e qualidade 0.6 para não pesar na Groq
 function canvasToBase64(canvas: HTMLCanvasElement): string {
-  return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+  const MAX_WIDTH = 800;
+  let width = canvas.width;
+  let height = canvas.height;
+  
+  if (width > MAX_WIDTH) {
+    height = Math.round((height * MAX_WIDTH) / width);
+    width = MAX_WIDTH;
+  }
+  
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = width;
+  tempCanvas.height = height;
+  const ctx = tempCanvas.getContext("2d");
+  ctx?.drawImage(canvas, 0, 0, width, height);
+  
+  return tempCanvas.toDataURL("image/jpeg", 0.6).split(",")[1];
 }
 
 export async function processarDocumento(file: File): Promise<string[]> {
@@ -40,19 +56,20 @@ export async function processarDocumento(file: File): Promise<string[]> {
     
     let textoNativoCompleto = '';
 
+    // 1. Tenta ler o texto nativo do PDF (Rápido e Grátis)
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       textoNativoCompleto += textContent.items.map((item: any) => item.str).join(' ') + ' ';
     }
 
-    // Se o texto for grande, tenta extrair via PDF.js primeiro
+    // 2. Aplica a extração no texto nativo
     if (textoNativoCompleto.trim().length > 100) {
        extrairMedicamentosDoTexto(textoNativoCompleto).forEach(m => medicamentosFinais.add(m));
-    } 
-    
-    // Se não achou nada (ou se é PDF escaneado), joga pra IA
-    if (medicamentosFinais.size < 5) {
+    }
+
+    // 3. Se a leitura nativa foi falha (achou menos de 20 remédios), usa a IA (Groq)
+    if (medicamentosFinais.size < 20) {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 1.5 }); 
@@ -63,12 +80,13 @@ export async function processarDocumento(file: File): Promise<string[]> {
 
         await page.render({ canvasContext: context!, viewport }).promise;
         
-        const base64 = canvasToBase64(canvas);
+        const base64 = canvasToBase64(canvas); // Passa pelo otimizador
         const { texto } = await extrairTextoComGroq({ data: { imageBase64: base64 } });
         extrairMedicamentosDoTexto(texto).forEach(m => medicamentosFinais.add(m));
       }
     }
   } else {
+    // 4. É uma imagem direta (JPG/PNG)
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve) => {
       reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
