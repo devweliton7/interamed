@@ -5,22 +5,20 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
-export default defineConfig(({ mode }) => {
-  // Força o carregamento das variáveis do .env para o process.env
-  // Isso resolve o problema de não carregar automaticamente no TanStack Start RC
+export default defineConfig(({ mode, command }) => {
   Object.assign(process.env, loadEnv(mode, process.cwd(), ""));
 
   return {
     plugins: [
       tailwindcss(),
-      nitro(),
-      tanstackStart({
-        server: { entry: "server" },
-      }),
+      // 🔑 O NITRO SÓ É ATIVADO NO BUILD (Deploy), NÃO NO DEV
+      command === "build" ? nitro() : null,
+      tanstackStart({ server: { entry: "server" } }),
       viteReact(),
-    ],
-    resolve: {
-      tsconfigPaths: true,
+    ].filter(Boolean), // Limpa o 'null' caso esteja em modo dev
+    resolve: { tsconfigPaths: true },
+    ssr: {
+      noExternal: ["pdfjs-dist"], // Resolve o warning do PDF.js
     },
   };
 });

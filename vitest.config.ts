@@ -1,19 +1,37 @@
-import { defineConfig, loadEnv } from "vite";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
 import viteReact from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
-import { nitro } from "nitro/vite";
+import path from "node:path";
 
-export default defineConfig(({ mode }) => {
-  Object.assign(process.env, loadEnv(mode, process.cwd(), ""));
-
-  return {
-    plugins: [
-      tailwindcss(),
-      nitro(),
-      tanstackStart({ server: { entry: "server" } }),
-      viteReact(),
-    ],
-    resolve: { tsconfigPaths: true },
-  };
+export default defineConfig({
+  plugins: [viteReact()],
+  test: {
+    // 🔑 Resolve "describe is not defined"
+    globals: true,
+    
+    // 🔑 Resolve "module is not defined" (React)
+    environment: "jsdom",
+    
+    // 🔑 Roda seu arquivo de setup
+    setupFiles: ["./src/test/setup.ts"],
+    
+    // 🔑 Resolve "close timed out"
+    pool: "forks",
+    teardownTimeout: 5000,
+    
+    // 🔑 Resolve "0 tests": Força o Vitest a olhar dentro de src/
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    
+    // 🔑 Otimiza o carregamento do React nos testes
+    server: {
+      deps: {
+        inline: ["react", "react-dom", "react/jsx-runtime"],
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
 });

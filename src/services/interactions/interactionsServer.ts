@@ -1,22 +1,28 @@
 // src/services/interactions/interactionsServer.ts
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-// importe sua função checkInteractions original aqui
+// 🔑 ESSENCIAL: Importar a função para o build do Nitro não removê-la
+import { checkInteractions } from "./interactionsService";
 
-const schema = z.object({
-  drugs: z.array(z.string()).min(2),
-});
+interface InteractionRequest {
+  medicamentos: string[];
+}
 
 export const getInteractionsServerFn = createServerFn({ method: "POST" })
-  .validator((data: unknown) => schema.parse(data))
+  .validator((data: InteractionRequest) => {
+    if (!data || !Array.isArray(data.medicamentos)) {
+      throw new Error("Payload inválido: esperado um array de medicamentos.");
+    }
+    return data;
+  })
   .handler(async ({ data }) => {
     try {
-      // Aqui está o truque: chamamos o checkInteractions passando TODOS os remédios de uma vez.
-      // Se a sua função checkInteractions já faz chamadas internas, ela precisa usar Promise.all.
-      const interactions = await checkInteractions(data.drugs);
-      return { interactions };
-    } catch (err) {
-      console.error("Erro no servidor:", err);
-      return { interactions: [] };
+      const resultado = await checkInteractions(data.medicamentos);
+      return { status: "sucesso", interacoes: resultado };
+    } catch (error) {
+      console.error("[ServerFn] Erro ao verificar interações:", error);
+      return { 
+        status: "erro", 
+        mensagem: "Não foi possível verificar as interações no momento." 
+      };
     }
   });
