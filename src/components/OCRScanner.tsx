@@ -1,5 +1,5 @@
 // src/components/OCRScanner.tsx
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Camera, Upload, X, Loader2, ShieldCheck } from "lucide-react";
 import { createWorker } from "tesseract.js";
 import { MEDS } from "@/lib/meds";
@@ -16,14 +16,93 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const streamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  // Função rigorosa para limpar a câmera e liberar o hardware (essencial no iOS e Samsung)
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  }, []);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Cleanup ao desmontar ou fechar
+  useEffect(() => {
+    if (!isOpen) {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [isOpen, stopCamera]);
 
+  const startCamera = async () => {
+    try {
+      setErrorMsg("");
+      stopCamera(); // Garante que qualquer stream anterior foi morto
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+      });
+      
+      streamRef.current = mediaStream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error("Erro ao acessar câmera:", err);
+      setErrorMsg("Não foi possível acessar a câmera. Verifique as permissões.");
+    }
+  };
+
+  // Otimização de Imagem: Redimensiona a foto para no máximo 1200px de largura
+  // Isso evita travamentos no iOS e acelera o Tesseract
+  const optimizeImage = (source: HTMLVideoElement | HTMLImageElement): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject("Canvas não suportado");
+
+      let width = source instanceof HTMLVideoElement ? source.videoWidth : source.width;
+      let height = source instanceof HTMLVideoElement ? source.videoHeight : source.height;
+
+      const MAX_WIDTH = 1200;
+      if (width > MAX_WIDTH) {
+        height = Math.round((height * MAX_WIDTH) / width);
+        width = MAX_WIDTH;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(source, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject("Falha ao converter imagem");
+        },
+        "image/jpeg",
+        0.85 // Compressão leve para manter a legibilidade
+      );
+    });
+  };
+
+  const processImage = async (imageSource: Blob | File) => {
     setIsProcessing(true);
     setProgress(0);
     setErrorMsg("");
@@ -37,13 +116,11 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
         },
       });
 
-      const result = await worker.recognize(file);
+      const result = await worker.recognize(imageSource);
       const textoExtraido = result.data.text;
       
-      // Encerra o worker imediatamente para limpar a memória e descartar a imagem
       await worker.terminate();
 
-      // Cruzamento com a base local (busca por partes do nome)
       const medsEncontrados = MEDS.filter((med) => {
         const regex = new RegExp(strip(med), "i");
         return regex.test(strip(textoExtraido));
@@ -53,7 +130,7 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
         onExtract(medsEncontrados);
         onClose();
       } else {
-        setErrorMsg("Nenhum medicamento da base foi reconhecido. Verifique se a receita está legível.");
+        setErrorMsg("Nenhum medicamento reconhecido. Tente uma foto mais nítida.");
       }
     } catch (error) {
       console.error("Erro no OCR:", error);
@@ -64,23 +141,56 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
     }
   };
 
+  const capturePhoto = async () => {
+    if (!videoRef.current) return;
+    
+    try {
+      const optimizedBlob = await optimizeImage(videoRef.current);
+      stopCamera(); // Para a câmera ANTES de processar para liberar memória
+      processImage(optimizedBlob);
+    } catch (err) {
+      console.error("Erro ao capturar:", err);
+      setErrorMsg("Falha ao capturar a imagem.");
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Se for uma imagem da galeria, também passamos pela otimização
+    const img = new Image();
+    img.onload = async () => {
+      try {
+        const optimizedBlob = await optimizeImage(img);
+        processImage(optimizedBlob);
+      } catch (err) {
+        console.error("Erro ao otimizar imagem da galeria:", err);
+        processImage(file); // Fallback para o arquivo original
+      }
+    };
+    img.src = URL.createObjectURL(file);
+  };
+
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in">
-      <div className="w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-[#F5F5F7] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+      <div className="w-full max-w-md rounded-t-[32px] sm:rounded-[32px] bg-[#F5F5F7] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in-95 max-h-[90vh]">
         
-        <div className="flex justify-between items-center p-6 pb-2">
+        <div className="flex justify-between items-center p-6 pb-2 shrink-0">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-black flex items-center gap-2">
               <ShieldCheck size={20} className="text-black" /> Scanner Seguro
             </h2>
-            <p className="text-xs text-gray-500 font-medium mt-1">Processamento 100% local e privado.</p>
+            <p className="text-xs text-gray-500 font-medium mt-1">Processamento 100% local.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-500 hover:text-black">
             <X size={16} strokeWidth={3} />
           </button>
         </div>
 
-        <div className="p-6 flex flex-col gap-4">
+        <div className="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar">
           {isProcessing ? (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-black" />
@@ -88,9 +198,27 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
                 <div className="bg-black h-full rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
               <p className="text-sm font-bold text-black">Extraindo texto... {progress}%</p>
-              <p className="text-[10px] text-gray-500 font-medium text-center">
-                A imagem está sendo processada no seu dispositivo e será descartada agora.
-              </p>
+            </div>
+          ) : isCameraActive ? (
+            <div className="flex flex-col gap-4">
+              <div className="relative w-full aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-inner">
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted // Essencial para autoplay no iOS
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 border-2 border-white/30 rounded-2xl pointer-events-none m-4 border-dashed" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={stopCamera} className="flex-1 py-4 rounded-xl bg-white border border-gray-200 text-black font-bold text-sm active:scale-95 transition-transform">
+                  Cancelar
+                </button>
+                <button onClick={capturePhoto} className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-xl bg-black text-white font-bold text-sm shadow-lg active:scale-95 transition-transform">
+                  <Camera size={20} /> Capturar
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -100,19 +228,19 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
                 </div>
               )}
 
-              <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+              <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
               
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 w-full py-5 rounded-2xl bg-black text-white font-bold text-sm transition-transform active:scale-[0.98] shadow-lg shadow-black/10">
-                <Camera size={20} /> Fotografar Receita
+              <button onClick={startCamera} className="flex items-center justify-center gap-2 w-full py-5 rounded-2xl bg-black text-white font-bold text-sm transition-transform active:scale-[0.98] shadow-lg shadow-black/10">
+                <Camera size={20} /> Abrir Câmera
               </button>
 
               <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white border border-gray-200 text-black font-bold text-sm transition-transform active:scale-[0.98]">
-                <Upload size={18} /> Escolher da Galeria
+                <Upload size={18} /> Escolher da Galeria / Drive
               </button>
 
               <div className="mt-4 p-4 bg-[#F2F2F7] rounded-xl text-center">
                 <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                  <strong>Privacidade Garantida:</strong> A foto não sai do seu celular. O sistema extrai apenas o texto e descarta a imagem instantaneamente.
+                  <strong>Privacidade Garantida:</strong> A foto não sai do seu celular. O sistema extrai apenas o texto e descarta a imagem.
                 </p>
               </div>
             </>
