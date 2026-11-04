@@ -1,6 +1,6 @@
 // src/components/OCRScanner.tsx
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Camera, Upload, X, Loader2, ShieldCheck, FileText } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Camera, Upload, X, Loader2, FileText } from "lucide-react";
 import { processarDocumento } from "../services/ocr/documentParser";
 
 interface OCRScannerProps {
@@ -11,7 +11,6 @@ interface OCRScannerProps {
 
 export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [statusMsg, setStatusMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -47,14 +46,14 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
       streamRef.current = mediaStream;
       if (videoRef.current) videoRef.current.srcObject = mediaStream;
     } catch (err) {
-      setErrorMsg("Não foi possível acessar a câmera.");
+      console.error(err);
+      setErrorMsg("Não foi possível acessar a câmera. Verifique as permissões.");
       setIsCameraActive(false);
     }
   };
 
   const handleProcessFile = async (file: File) => {
     setIsProcessing(true);
-    setStatusMsg("Lendo documento...");
     setErrorMsg("");
 
     try {
@@ -64,11 +63,11 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
         onExtract(medsEncontrados);
         onClose();
       } else {
-        setErrorMsg("Nenhum medicamento da base foi reconhecido.");
+        setErrorMsg("Nenhum medicamento reconhecido na imagem. Tente novamente.");
       }
     } catch (error) {
       console.error(error);
-      setErrorMsg("Falha ao processar o documento.");
+      setErrorMsg("Falha ao processar o documento com a IA.");
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -91,7 +90,7 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
           const file = new File([blob], "receita.jpg", { type: "image/jpeg" });
           handleProcessFile(file);
         }
-      }, "image/jpeg", 0.85);
+      }, "image/jpeg", 0.8); // 0.8 de qualidade para não pesar no envio da Vercel
     }
   };
 
@@ -104,9 +103,9 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
         <div className="flex justify-between items-center p-6 pb-2 shrink-0">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-black flex items-center gap-2">
-              <ShieldCheck size={20} className="text-black" /> Scanner de Receitas
+              <Camera size={20} className="text-black" /> Scanner IA
             </h2>
-            <p className="text-xs text-gray-500 font-medium mt-1">Processamento 100% local e seguro.</p>
+            <p className="text-xs text-gray-500 font-medium mt-1">Leitura inteligente e rápida.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-gray-500 hover:text-black">
             <X size={16} strokeWidth={3} />
@@ -117,9 +116,9 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
           {isProcessing ? (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-black" />
-              <p className="text-sm font-bold text-black">{statusMsg}</p>
+              <p className="text-sm font-bold text-black">Processando com Groq IA...</p>
               <p className="text-[10px] text-gray-500 font-medium text-center max-w-[250px]">
-                Extraindo texto e identificando medicamentos. Aguarde...
+                A inteligência artificial está lendo sua receita e extraindo os medicamentos.
               </p>
             </div>
           ) : isCameraActive ? (
@@ -152,17 +151,13 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
                 if (file) handleProcessFile(file);
               }} />
               
-              <button onClick={startCamera} className="flex items-center justify-center gap-2 w-full py-5 rounded-2xl bg-black text-white font-bold text-sm shadow-lg">
-                <Camera size={20} /> Tirar Foto
+              <button onClick={startCamera} className="flex items-center justify-center gap-2 w-full py-5 rounded-2xl bg-black text-white font-bold text-sm shadow-lg active:scale-95 transition-transform">
+                <Camera size={20} /> Abrir Câmera
               </button>
 
-              <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white border border-gray-200 text-black font-bold text-sm">
+              <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white border border-gray-200 text-black font-bold text-sm active:scale-95 transition-transform">
                 <FileText size={18} /> Enviar PDF ou Imagem
               </button>
-
-              <div className="mt-4 p-4 bg-[#F2F2F7] rounded-xl text-center">
-                <p className="text-[10px] text-gray-500 font-medium">Suporta PDFs nativos, PDFs escaneados e fotos.</p>
-              </div>
             </>
           )}
         </div>

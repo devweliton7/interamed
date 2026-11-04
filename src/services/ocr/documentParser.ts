@@ -1,6 +1,6 @@
 // src/services/ocr/documentParser.ts
 import * as pdfjsLib from 'pdfjs-dist';
-import Tesseract from 'tesseract.js';
+import { extrairTextoComGroq } from './groqOcrServer';
 import { MEDS } from '@/lib/meds';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -10,30 +10,24 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 const strip = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-// Função robusta de extração
 function extrairMedicamentosDoTexto(textoBruto: string): string[] {
-  // Limpa quebras de linha estranhas e pontuações
   const textoLimpo = textoBruto.replace(/\n/g, " ").replace(/[.,;:]/g, " ");
   const palavras = textoLimpo.split(/\s+/);
-  
   const medsEncontrados = new Set<string>();
 
-  // Para cada medicamento da nossa base, verifica se alguma palavra do texto bate
   MEDS.forEach((med) => {
     const medNormalizado = strip(med);
-    
-    // Verifica se a palavra exata existe no texto
-    const encontrouExato = palavras.some(p => strip(p) === medNormalizado);
-    
-    // Verifica se a palavra do medicamento está contida em alguma palavra do texto (ex: "Losartana50mg")
-    const encontrouParcial = palavras.some(p => strip(p).includes(medNormalizado));
-
-    if (encontrouExato || encontrouParcial) {
+    if (palavras.some(p => strip(p).includes(medNormalizado))) {
       medsEncontrados.add(med);
     }
   });
 
   return Array.from(medsEncontrados);
+}
+
+function canvasToBase64(canvas: HTMLCanvasElement): string {
+  // Reduzimos a qualidade para 0.7 para não estourar o limite da Vercel (4.5MB)
+  return canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
 }
 
 export async function processarDocumento(file: File): Promise<string[]> {
@@ -45,22 +39,19 @@ export async function processarDocumento(file: File): Promise<string[]> {
     
     let textoNativoCompleto = '';
 
-    // 1. Tenta extrair texto nativo
+    // 1. Tenta ler o texto nativo (se for PDF de sistema, é instantâneo)
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      textoNativoCompleto += pageText + ' ';
+      textoNativoCompleto += textContent.items.map((item: any) => item.str).join(' ') + ' ';
     }
 
-    // Se for PDF nativo com texto bom, usa direto (MUITO MAIS RÁPIDO)
     if (textoNativoCompleto.trim().length > 100) {
        extrairMedicamentosDoTexto(textoNativoCompleto).forEach(m => medicamentosFinais.add(m));
     } else {
-      // Se for PDF escaneado, faz OCR (mais lento)
+      // 2. Se for PDF escaneado, envia as páginas para a IA
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        // Reduzido de 2.0 para 1.5 para otimizar a memória do celular
         const viewport = page.getViewport({ scale: 1.5 }); 
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -69,17 +60,22 @@ export async function processarDocumento(file: File): Promise<string[]> {
 
         await page.render({ canvasContext: context!, viewport }).promise;
         
-        // Tesseract com configuração mais leve
-        const { data: { text } } = await Tesseract.recognize(canvas, 'por', {
-            // Desativa logs desnecessários
-        });
-        extrairMedicamentosDoTexto(text).forEach(m => medicamentosFinais.add(m));
+        const base64 = canvasToBase64(canvas);
+        const { texto } = await extrairTextoComGroq({ data: { imageBase64: base64 } });
+        extrairMedicamentosDoTexto(texto).forEach(m => medicamentosFinais.add(m));
       }
     }
   } else {
-    // Imagem (JPG/PNG)
-    const { data: { text } } = await Tesseract.recognize(file, 'por');
-    extrairMedicamentosDoTexto(text).forEach(m => medicamentosFinais.add(m));
+    // 3. Se for imagem (JPG/PNG)
+    const reader = new FileReader();
+    const base64Promise = new Promise<string>((resolve) => {
+      reader.onloadend = () => resolve((reader.result as string).split(",")[1]);
+      reader.readAsDataURL(file);
+    });
+    const base64 = await base64Promise;
+    
+    const { texto } = await extrairTextoComGroq({ data: { imageBase64: base64 } });
+    extrairMedicamentosDoTexto(texto).forEach(m => medicamentosFinais.add(m));
   }
 
   return Array.from(medicamentosFinais);
