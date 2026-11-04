@@ -1,10 +1,16 @@
-import { createStart, createCsrfMiddleware } from "@tanstack/react-start";
+// src/start.ts
+import { createStart, createMiddleware } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
 
-// Protege as funções do servidor contra requisições maliciosas (Cross-Site)
-const csrfMiddleware = createCsrfMiddleware({
-  filter: (ctx) => ctx.handlerType === "serverFn",
+const cameraPermissionMiddleware = createMiddleware().server(async ({ next }) => {
+  // Define o header individualmente (mais seguro e evita erro de iteração)
+  setResponseHeader("Permissions-Policy", "camera=(self), microphone=()");
+  
+  return next();
 });
 
-export const startInstance = createStart(() => ({
-  requestMiddleware: [csrfMiddleware],
-}));
+export const startInstance = createStart(() => {
+  return {
+    requestMiddleware: [cameraPermissionMiddleware],
+  };
+});

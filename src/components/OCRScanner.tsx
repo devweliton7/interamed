@@ -17,38 +17,36 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
   const [progress, setProgress] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   
+  // Estados da Câmera
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false); // Novo estado para o iOS
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Função rigorosa para limpar a câmera e liberar o hardware (essencial no iOS e Samsung)
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => {
-        track.stop();
-      });
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    setIsVideoReady(false);
   }, []);
 
-  // Cleanup ao desmontar ou fechar
   useEffect(() => {
-    if (!isOpen) {
-      stopCamera();
-    }
+    if (!isOpen) stopCamera();
     return () => stopCamera();
   }, [isOpen, stopCamera]);
 
   const startCamera = async () => {
-    try {
-      setErrorMsg("");
-      stopCamera(); // Garante que qualquer stream anterior foi morto
+    setIsCameraActive(true); // 1. Renderiza o <video> PRIMEIRO (Obrigatório para o iOS)
+    setIsVideoReady(false);
+    setErrorMsg("");
 
+    try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: "environment",
@@ -59,19 +57,18 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
       
       streamRef.current = mediaStream;
       
+      // 2. Só atribui o stream se o vídeo já estiver na tela
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-      
-      setIsCameraActive(true);
     } catch (err) {
       console.error("Erro ao acessar câmera:", err);
-      setErrorMsg("Não foi possível acessar a câmera. Verifique as permissões.");
+      setErrorMsg("Não foi possível acessar a câmera. Verifique as permissões no navegador.");
+      setIsCameraActive(false);
     }
   };
 
-  // Otimização de Imagem: Redimensiona a foto para no máximo 1200px de largura
-  // Isso evita travamentos no iOS e acelera o Tesseract
+  // Otimização de Imagem (Redimensionamento)
   const optimizeImage = (source: HTMLVideoElement | HTMLImageElement): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement("canvas");
@@ -97,7 +94,7 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
           else reject("Falha ao converter imagem");
         },
         "image/jpeg",
-        0.85 // Compressão leve para manter a legibilidade
+        0.85
       );
     });
   };
@@ -130,7 +127,7 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
         onExtract(medsEncontrados);
         onClose();
       } else {
-        setErrorMsg("Nenhum medicamento reconhecido. Tente uma foto mais nítida.");
+        setErrorMsg("Nenhum medicamento da base foi reconhecido. Tente uma foto mais nítida.");
       }
     } catch (error) {
       console.error("Erro no OCR:", error);
@@ -142,11 +139,11 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
   };
 
   const capturePhoto = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !isVideoReady) return; // Só captura se o vídeo estiver rodando de verdade
     
     try {
       const optimizedBlob = await optimizeImage(videoRef.current);
-      stopCamera(); // Para a câmera ANTES de processar para liberar memória
+      stopCamera();
       processImage(optimizedBlob);
     } catch (err) {
       console.error("Erro ao capturar:", err);
@@ -158,15 +155,13 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Se for uma imagem da galeria, também passamos pela otimização
     const img = new Image();
     img.onload = async () => {
       try {
         const optimizedBlob = await optimizeImage(img);
         processImage(optimizedBlob);
       } catch (err) {
-        console.error("Erro ao otimizar imagem da galeria:", err);
-        processImage(file); // Fallback para o arquivo original
+        processImage(file);
       }
     };
     img.src = URL.createObjectURL(file);
@@ -200,22 +195,40 @@ export function OCRScanner({ isOpen, onClose, onExtract }: OCRScannerProps) {
               <p className="text-sm font-bold text-black">Extraindo texto... {progress}%</p>
             </div>
           ) : isCameraActive ? (
+            /* TELA DA CÂMERA - O vídeo é renderizado imediatamente */
             <div className="flex flex-col gap-4">
-              <div className="relative w-full aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-inner">
+              <div className="relative w-full aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+                {!isVideoReady && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 z-10">
+                    <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                    <span className="text-xs font-medium">Ligando câmera...</span>
+                  </div>
+                )}
+                
                 <video 
                   ref={videoRef} 
                   autoPlay 
                   playsInline 
-                  muted // Essencial para autoplay no iOS
-                  className="w-full h-full object-cover"
+                  muted 
+                  onCanPlay={() => setIsVideoReady(true)} // Gatilho de sucesso do iOS
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${isVideoReady ? 'opacity-100' : 'opacity-0'}`}
                 />
-                <div className="absolute inset-0 border-2 border-white/30 rounded-2xl pointer-events-none m-4 border-dashed" />
+                
+                {isVideoReady && (
+                  <div className="absolute inset-0 border-2 border-white/30 rounded-2xl pointer-events-none m-4 border-dashed" />
+                )}
               </div>
               <div className="flex gap-3">
                 <button onClick={stopCamera} className="flex-1 py-4 rounded-xl bg-white border border-gray-200 text-black font-bold text-sm active:scale-95 transition-transform">
                   Cancelar
                 </button>
-                <button onClick={capturePhoto} className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-xl bg-black text-white font-bold text-sm shadow-lg active:scale-95 transition-transform">
+                <button 
+                  onClick={capturePhoto} 
+                  disabled={!isVideoReady}
+                  className={`flex-[2] flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-sm shadow-lg transition-all ${
+                    isVideoReady ? 'bg-black text-white active:scale-95' : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
                   <Camera size={20} /> Capturar
                 </button>
               </div>
