@@ -24,26 +24,24 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
           messages: [
             {
               role: "system",
-              content: "Você é um assistente de saúde digital. Analise imagens e retorne SEMPRE um objeto JSON válido, sem markdown."
+              content: "Você é um transcritor de receitas médicas. Sua função é ler a imagem e retornar APENAS os nomes dos medicamentos listados na coluna principal de prescrição. Você deve ser burro e literal: se não for um nome de medicamento, você não transcreve."
             },
             {
               role: "user",
               content: [
                 { 
                   type: "text", 
-                  text: `Analise a imagem.
-                  Se for uma receita médica, extraia os medicamentos da coluna de medicamentos.
-                  Retorne no formato JSON exato:
-                  {
-                    "status": "sucesso",
-                    "medicamentos": ["Digoxina", "Furosemida"]
-                  }
+                  text: `Transcreva a lista de medicamentos da imagem.
                   
-                  Se NÃO for uma receita médica ou se estiver ilegível, retorne:
-                  {
-                    "status": "erro",
-                    "mensagem": "O documento enviado não parece ser uma receita médica legível."
-                  }`
+                  REGRAS ESTRITAS (VIOLAR É ERRO CRÍTICO):
+                  1. Extraia APENAS o nome do princípio ativo/medicamento (ex: "Dipirona").
+                  2. IGNORE COMPLETAMENTE: Assinaturas, carimbos, datas, CPFs, nomes de médicos, cabeçalhos de hospital, e rodapés (ex: "Página 1", "Sistema X").
+                  3. IGNORE posologias ("1 comprimido", "8/8h"), vias ("VO", "EV") e quantidades.
+                  4. Retorne APENAS no formato JSON: 
+                  { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }
+                  
+                  Se não for uma receita:
+                  { "status": "erro", "mensagem": "Documento inválido." }`
                 },
                 { 
                   type: "image_url", 
@@ -52,24 +50,19 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
               ],
             },
           ],
-          temperature: 0.1,
+          temperature: 0.0,
           max_tokens: 4000,
           response_format: { type: "json_object" }
         }),
       });
 
-      if (!response.ok) {
-        return { status: "erro", mensagem: "A IA não conseguiu processar esta imagem (formato inválido ou muito grande)." };
-      }
+      if (!response.ok) return { status: "erro", mensagem: "Falha na API." };
 
       const json = await response.json();
       const content = json.choices?.[0]?.message?.content || "{}";
-      const parsed = JSON.parse(content);
-      
-      return parsed;
-
+      return JSON.parse(content);
     } catch (e) {
       console.error("Erro na Groq:", e);
-      return { status: "erro", mensagem: "Falha de conexão com a Inteligência Artificial." };
+      return { status: "erro", mensagem: "Falha de conexão." };
     }
   });

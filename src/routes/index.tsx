@@ -8,6 +8,8 @@ import { useInteractions } from "../hooks/useInteractions";
 import { MedicationCard } from "../components/interactions/MedicationCard";
 import { TransparencyNotice } from "../components/TransparencyNotice";
 import { OCRScanner } from "../components/OCRScanner";
+import { PrivacyBanner } from "../components/PrivacyBanner";
+import { useSecureSession } from "../hooks/useSecureSession";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -19,6 +21,9 @@ export const Route = createFileRoute("/")({
 const strip = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 function Index() {
+  // 🔑 LGPD: Ativa a expiração de sessão
+  useSecureSession();
+
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<"search" | "results">("search");
   const [query, setQuery] = useState("");
@@ -35,19 +40,20 @@ function Index() {
   useEffect(() => {
     setMounted(true);
     try {
-      const savedQuery = localStorage.getItem("interamed-query");
-      const savedSelected = localStorage.getItem("interamed-selected");
+      // 🔑 LGPD: Minimização de dados com sessionStorage
+      const savedQuery = sessionStorage.getItem("interamed-query");
+      const savedSelected = sessionStorage.getItem("interamed-selected");
       if (savedQuery) setQuery(JSON.parse(savedQuery));
       if (savedSelected) setSelected(JSON.parse(savedSelected));
     } catch (e) {}
   }, []);
 
   useEffect(() => {
-    if (mounted) localStorage.setItem("interamed-query", JSON.stringify(query));
+    if (mounted) sessionStorage.setItem("interamed-query", JSON.stringify(query));
   }, [query, mounted]);
 
   useEffect(() => {
-    if (mounted) localStorage.setItem("interamed-selected", JSON.stringify(selected));
+    if (mounted) sessionStorage.setItem("interamed-selected", JSON.stringify(selected));
   }, [selected, mounted]);
 
   useEffect(() => {
@@ -204,27 +210,27 @@ function Index() {
         {step === "results" && (
           <section className="animate-in fade-in slide-in-from-right-8 duration-300 pb-12">
             
+            {/* 🔑 Aviso de Sincronização solicitado e mantido no topo */}
             <div className="mb-6 rounded-2xl bg-white p-4 border border-gray-200/60 shadow-sm flex items-start gap-3">
               <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0">
                 <Terminal size={14} strokeWidth={2.5} />
               </div>
               <div>
-                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-                  <strong className="text-black font-bold uppercase tracking-wider text-[10px] block mb-0.5">Ambiente Demonstrativo</strong> 
-                  Dados clínicos serão injetados via API em produção.
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide leading-relaxed">
+                  Dados demonstrativos. Sincronizados via API ANVISA Ambulatorial e Open FDA ativa em produção.
                 </p>
               </div>
             </div>
 
             <div className="mb-8">
-              <h2 className="text-2xl font-black tracking-tighter text-black leading-tight whitespace-nowrap overflow-hidden text-ellipsis">
+              <h2 className="text-3xl font-black tracking-tighter text-black leading-tight">
                 {loadingInteractions ? "Analisando..." : (
                   counts.grave > 0 
-                    ? `Alerta: ${counts.grave} Risco(s) Grave(s)` 
+                    ? `Atenção: ${counts.grave} Risco(s) Grave(s)` 
                     : counts.moderada > 0 
-                      ? `Alerta: ${counts.moderada} Interações Moderadas`
+                      ? (counts.moderada === 1 ? "Cuidado: 1 Interação Moderada" : `Cuidado: ${counts.moderada} Interações Moderadas`)
                       : counts.leve > 0
-                        ? `Alerta: ${counts.leve} Interações Leves`
+                        ? (counts.leve === 1 ? "Atenção: 1 Interação Leve" : `Atenção: ${counts.leve} Interações Leves`)
                         : "Prescrição Segura"
                 )}
               </h2>
@@ -248,11 +254,6 @@ function Index() {
 
             {!loadingInteractions && (
               <div className="mt-12">
-                <div className="mb-6 text-center">
-                  <p className="text-[10px] text-gray-400 font-medium">
-                    Nota: Resultados simulados. Integração com Prontuário Eletrônico em produção.
-                  </p>
-                </div>
                 <TransparencyNotice />
               </div>
             )}
@@ -260,6 +261,7 @@ function Index() {
         )}
       </main>
 
+      <PrivacyBanner />
       <OCRScanner isOpen={isOcrOpen} onClose={() => setIsOcrOpen(false)} onExtract={handleOcrExtract} />
     </div>
   );

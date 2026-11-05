@@ -6,7 +6,30 @@ export const MEDS = [
   "Dexametasona", "Digoxina", "Dipirona", "Enoxaparina", "Espironolactona",
   "Furosemida", "Hidroclorotiazida", "Ibuprofeno", "Losartana", "Metformina",
   "Omeprazol", "Paracetamol", "Prednisona", "Sinvastatina", "Varfarina",
+  "Ácido Acetilsalicílico", "Atenolol", "Azitromicina", "Bisoprolol",
+  "Bromoprida", "Budesonida", "Carvedilol", "Cefalexina", "Ceftriaxona",
+  "Cetirizina", "Cimetidina", "Cisatracúrio", "Claritromicina", "Clonazepam",
+  "Dapagliflozina", "Diazepam", "Diclofenaco", "Enalapril", "Escitalopram",
+  "Fenitoína", "Fluconazol", "Fosfomicina", "Glibenclamida", "Heparina",
+  "Ipratrópio", "Isossorbida", "Itraconazol", "Lactulose", "Levetiracetam",
+  "Levotiroxina", "Lidocaína", "Loratadina", "Lorazepam", "Mannitol",
+  "Meropenem", "Metildopa", "Metoclopramida", "Metoprolol", "Midazolam",
+  "Montelucaste", "Morfina", "Nifedipino", "Nistatina", "Nitroprussiato",
+  "Norepinefrina", "Norfloxacino", "Ondansetrona", "Oxacilina",
+  "Pantoprazol", "Penicilina", "Propofol", "Ranitidina", "Rivaroxabana",
+  "Rosuvastatina", "Salbutamol", "Sertralina", "Simeticona", "Sulfametoxazol",
+  "Tramadol", "Trimetoprima", "Vancomicina", "Zolpidem"
 ];
+
+export const SINONIMOS: Record<string, string> = {
+  "aas": "Ácido Acetilsalicílico",
+  "aspirina": "Ácido Acetilsalicílico",
+  "dipirona sodica": "Dipirona",
+  "metformina cloridrato": "Metformina",
+  "losartana potassica": "Losartana",
+  "omeprazol magnesio": "Omeprazol",
+  "amoxicilina tri-hidratada": "Amoxicilina",
+};
 
 type Info = { severity: Exclude<Severity, "nenhuma" | "semdado">; desc: string; rec: string };
 
@@ -42,7 +65,8 @@ export function getInteraction(a: string, b: string): { severity: Severity; desc
   const i = MAP.get(key(a, b));
   if (i) return i;
   if (NO_DATA.has(key(a, b))) return { severity: "semdado", desc: "Sem dados disponíveis.", rec: "Consultar o farmacêutico." };
-  return { severity: "nenhuma", desc: "Sem interação conhecida.", rec: "" };
+  
+  return { severity: "semdado", desc: "Interação não mapeada para este par.", rec: "Consultar o farmacêutico." };
 }
 
 export const interacts = (a: string, b: string) => {
@@ -50,7 +74,7 @@ export const interacts = (a: string, b: string) => {
   return s === "grave" || s === "moderada" || s === "leve";
 };
 
-// --- LÓGICA DE HORÁRIOS RESTAURADA ---
+// --- LÓGICA DE HORÁRIOS ---
 export type Slot = { id: string; minutes: number; meds: string[] };
 
 export const toHHMM = (m: number) =>
@@ -60,7 +84,6 @@ export const fromHHMM = (s: string) => {
   return (h ?? 0) * 60 + (m ?? 0);
 };
 
-/** Distribui a partir das 10h, com 2h entre medicamentos que interagem. */
 export function distribute(meds: string[]): Slot[] {
   const slots: Slot[] = [];
   for (const med of meds) {

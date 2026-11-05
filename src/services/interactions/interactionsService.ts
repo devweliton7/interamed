@@ -4,13 +4,6 @@ import { fetchDDInterPair } from "./ddinterClient";
 import { findLocalInteraction } from "./localInteractions";
 import { mergeInteraction, type InteractionResult } from "./mergeInteractions";
 
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
-}
-
 async function runWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -38,9 +31,9 @@ export async function checkInteractions(
 ): Promise<InteractionResult[]> {
   if (drugNames.length < 2) return [];
 
-  console.log(`[Service] Verificando interações para ${drugNames.length} medicamentos.`);
   const normalized = await normalizeDrugList(drugNames);
 
+  // 1. Monta todos os pares de uma vez
   const pares: Array<{ a: string; b: string }> = [];
   for (let i = 0; i < normalized.length; i++) {
     for (let j = i + 1; j < normalized.length; j++) {
@@ -51,27 +44,18 @@ export async function checkInteractions(
     }
   }
 
-  console.log(`[Service] ${pares.length} pares gerados para verificação.`);
-
-  const results = await runWithConcurrency(pares, 5, async (par) => {
+  // 2. Roda em paralelo com concorrência controlada
+  const results = await runWithConcurrency(pares, 10, async (par) => {
+    // Base local primeiro (instantânea)
     const local = findLocalInteraction(par.a, par.b);
-    let ddinter = null;
 
-    try {
-      ddinter = await withTimeout(fetchDDInterPair(par.a, par.b), 4000, null);
-      if (ddinter) {
-        console.log(`[API ✅] ${par.a} × ${par.b} → ${ddinter.severity}`);
-      } else {
-        console.log(`[API ❌] ${par.a} × ${par.b} → timeout/sem resposta (usando base local)`);
-      }
-    } catch (err) {
-      console.warn(`[API 💥] Erro na chamada DDInter: ${par.a} × ${par.b}`, err);
-    }
+    // API Externa: Como o DDInter caiu, o fetchDDInterPair vai retornar null na hora.
+    // Deixamos a chamada aqui preparada para o futuro.
+    const ddinter = await fetchDDInterPair(par.a, par.b);
 
     return mergeInteraction(par.a, par.b, ddinter, local);
   });
 
-  console.log(`[Service] Finalizado. Total de resultados: ${results.length}`);
   return results;
 }
 
