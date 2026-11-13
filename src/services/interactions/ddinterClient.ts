@@ -32,12 +32,30 @@ async function fetchFdaInteractions(drugA: string, drugB: string): Promise<DDInt
       const end = Math.min(interactionsText.length, index + drugBLower.length + 200);
       const snippet = interactionsText.substring(start, end).trim();
 
+      // 🔑 REGRA REAL DE NEGÓCIO PARA A GRAVIDADE (Baseada no texto da bula)
+      let gravidadeCalculada: "Major" | "Moderate" | "Minor" = "Moderate";
+      
+      if (
+        interactionsText.includes("contraindicated") || 
+        interactionsText.includes("avoid concomitant use") || 
+        interactionsText.includes("should not be")
+      ) {
+        gravidadeCalculada = "Major";
+      } else if (
+        interactionsText.includes("monitor") || 
+        interactionsText.includes("caution")
+      ) {
+        gravidadeCalculada = "Moderate";
+      } else {
+        gravidadeCalculada = "Minor";
+      }
+
       return {
         drugA,
         drugB,
-        severity: "Moderate",
+        severity: gravidadeCalculada,
         description: `Interação detectada na bula (OpenFDA): "...${snippet}..."`,
-        evidenceLevel: "Bula Oficial",
+        evidenceLevel: "Bula Oficial (OpenFDA)",
       };
     }
     return null;
@@ -61,6 +79,7 @@ export async function fetchDDInterPair(
         ...resultB,
         drugA,
         drugB,
+        // Inverte a descrição para fazer sentido
         description: resultB.description?.replace(drugA, drugB).replace(drugB, drugA)
      };
   }

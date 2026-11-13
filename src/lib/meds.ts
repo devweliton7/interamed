@@ -19,18 +19,19 @@ export const MEDS = [
   "Pantoprazol", "Penicilina", "Propofol", "Ranitidina", "Rivaroxabana",
   "Rosuvastatina", "Salbutamol", "Sertralina", "Simeticona", "Sulfametoxazol",
   "Tramadol", "Trimetoprima", "Vancomicina", "Zolpidem",
-  // Adicionados para o teste:
   "Acetato De Medroxiprogesterona"
 ];
 
+// 🔑 DICIONÁRIO DE TRADUÇÃO E SINÔNIMOS (PT-BR -> EN)
 export const SINONIMOS: Record<string, string> = {
-  "aas": "Ácido Acetilsalicílico",
-  "aspirina": "Ácido Acetilsalicílico",
-  "dipirona sodica": "Dipirona",
-  "metformina cloridrato": "Metformina",
-  "losartana potassica": "Losartana",
-  "omeprazol magnesio": "Omeprazol",
-  "amoxicilina tri-hidratada": "Amoxicilina",
+  "aas": "aspirin", 
+  "aspirina": "aspirin",
+  "dipirona": "dipyrone",
+  "dipirona sodica": "dipyrone",
+  "metformina cloridrato": "metformin",
+  "losartana potassica": "losartan",
+  "omeprazol magnesio": "omeprazole",
+  "amoxicilina tri-hidratada": "amoxicillin",
 };
 
 type Info = { severity: Exclude<Severity, "nenhuma" | "semdado">; desc: string; rec: string };
@@ -58,8 +59,6 @@ const RAW: [string, string, Info][] = [
   ["Metformina", "Dexametasona", { severity: "leve", desc: "Pode elevar a glicemia.", rec: "Monitorar glicemia capilar." }],
   ["Sinvastatina", "Anlodipino", { severity: "leve", desc: "Aumenta nível de sinvastatina.", rec: "Observar dor muscular." }],
   ["Furosemida", "Dexametasona", { severity: "leve", desc: "Pode baixar o potássio.", rec: "Monitorar potássio." }],
-  
-  // 🔑 NOVA INTERAÇÃO ADICIONADA:
   ["Acetato De Medroxiprogesterona", "Varfarina", { severity: "moderada", desc: "Risco aumentado de eventos trombóticos e alteração no efeito anticoagulante.", rec: "Monitorar sinais de trombose e INR." }],
 ];
 
@@ -71,7 +70,7 @@ export function getInteraction(a: string, b: string): { severity: Severity; desc
   if (i) return i;
   if (NO_DATA.has(key(a, b))) return { severity: "semdado", desc: "Sem dados disponíveis.", rec: "Consultar o farmacêutico." };
   
-  return { severity: "semdado", desc: "Interação não mapeada para este par.", rec: "Consultar o farmacêutico." };
+  return { severity: "semdado", desc: "Interação não mapeada.", rec: "Consultar o farmacêutico." };
 }
 
 export const interacts = (a: string, b: string) => {
