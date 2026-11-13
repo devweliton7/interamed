@@ -1,6 +1,4 @@
-// src/services/interactions/ddinterClient.ts
-
-const DDINTER_BASE = "https://api.ddinter.com/v1";
+// src/services/interactions/ddinterClient.ts (Usando OpenFDA)
 
 export type DDInterInteraction = {
   drugA: string;
@@ -11,45 +9,56 @@ export type DDInterInteraction = {
   evidenceLevel?: string;
 };
 
-function mapSeverity(raw: string): DDInterInteraction["severity"] {
-  const s = raw?.toLowerCase() ?? "";
-  if (s.includes("major")) return "Major";
-  if (s.includes("moderate")) return "Moderate";
-  if (s.includes("minor")) return "Minor";
-  return "Unknown";
-}
+const OPENFDA_BASE = "https://api.fda.gov/drug/label.json";
 
 export async function fetchDDInterPair(
   drugA: string,
   drugB: string
 ): Promise<DDInterInteraction | null> {
-  const url = `${DDINTER_BASE}/interaction/check?drug1=${encodeURIComponent(drugA)}&drug2=${encodeURIComponent(drugB)}`;
-
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(4000),
-      headers: { Accept: "application/json" },
-    });
+    // 1. Busca a bula do remédio A na OpenFDA
+    // Buscamos pelo nome genérico (ex: "warfarin") ou nome de marca
+    const query = encodeURIComponent(`openfda.generic_name:"${drugA}" OR openfda.brand_name:"${drugA}"`);
+    const url = `${OPENFDA_BASE}?search=${query}&limit=1`;
 
-    if (!res.ok) {
-      console.warn(`[DDInter] HTTP ${res.status} para ${drugA} × ${drugB}`);
-      return null;
-    }
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return null;
 
     const data = await res.json();
+    const label = data?.results?.[0];
+    
+    // Se não achou a bula, não tem como verificar
+    if (!label) return null;
 
-    if (!data?.interaction) return null;
+    // 2. Pega o texto da seção de interações da bula
+    const interactionsArray = label.drug_interactions;
+    if (!interactionsArray || interactionsArray.length === 0) return null;
 
-    return {
-      drugA,
-      drugB,
-      severity: mapSeverity(data.interaction.level),
-      description: data.interaction.description,
-      mechanism: data.interaction.mechanism,
-      evidenceLevel: data.interaction.evidence,
-    };
+    const interactionsText = interactionsArray.join(" ").toLowerCase();
+    const drugBLower = drugB.toLowerCase();
+
+    // 3. Verifica se o remédio B é mencionado no texto da bula do remédio A
+    if (interactionsText.includes(drugBLower)) {
+      // Extrai um trecho do texto para mostrar na tela
+      const index = interactionsText.indexOf(drugBLower);
+      const start = Math.max(0, index - 150);
+      const end = Math.min(interactionsText.length, index + drugBLower.length + 200);
+      const snippet = interactionsArray.join(" ").substring(start, end).trim();
+
+      return {
+        drugA,
+        drugB,
+        // A OpenFDA não classifica gravidade. Usamos "Moderate" como padrão
+        // para evitar pânico desnecessário, mas indicando que há uma menção.
+        severity: "Moderate", 
+        description: `Menção na bula da OpenFDA: "...${snippet}..."`,
+        evidenceLevel: "Bula Oficial (OpenFDA)",
+      };
+    }
+
+    return null;
   } catch (err) {
-    console.warn(`[DDInter] Falha na requisição: ${drugA} × ${drugB}`, err);
+    console.warn(`[OpenFDA] Erro ao buscar ${drugA} × ${drugB}:`, err);
     return null;
   }
 }

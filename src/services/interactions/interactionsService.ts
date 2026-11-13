@@ -22,7 +22,6 @@ async function runWithConcurrency<T, R>(
   await Promise.all(
     Array.from({ length: Math.min(limit, items.length) }, worker)
   );
-
   return results;
 }
 
@@ -31,29 +30,29 @@ export async function checkInteractions(
 ): Promise<InteractionResult[]> {
   if (drugNames.length < 2) return [];
 
+  // 1. Normaliza todos os remédios via RxNorm
   const normalized = await normalizeDrugList(drugNames);
 
-  // 1. Monta todos os pares de uma vez
+  // 2. Monta os pares
   const pares: Array<{ a: string; b: string }> = [];
   for (let i = 0; i < normalized.length; i++) {
     for (let j = i + 1; j < normalized.length; j++) {
       pares.push({
-        a: normalized[i].originalName,
-        b: normalized[j].originalName,
+        a: normalized[i].normalizedName || normalized[i].originalName,
+        b: normalized[j].normalizedName || normalized[j].originalName,
       });
     }
   }
 
-  // 2. Roda em paralelo com concorrência controlada
-  const results = await runWithConcurrency(pares, 10, async (par) => {
+  // 3. Roda com concorrência 3 (OpenFDA é mais lenta e tem limite de requisições)
+  const results = await runWithConcurrency(pares, 3, async (par) => {
     // Base local primeiro (instantânea)
     const local = findLocalInteraction(par.a, par.b);
 
-    // API Externa: Como o DDInter caiu, o fetchDDInterPair vai retornar null na hora.
-    // Deixamos a chamada aqui preparada para o futuro.
-    const ddinter = await fetchDDInterPair(par.a, par.b);
+    // OpenFDA via API real
+    const openFda = await fetchDDInterPair(par.a, par.b);
 
-    return mergeInteraction(par.a, par.b, ddinter, local);
+    return mergeInteraction(par.a, par.b, openFda, local);
   });
 
   return results;

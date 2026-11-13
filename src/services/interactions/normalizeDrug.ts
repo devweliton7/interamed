@@ -8,53 +8,48 @@ export type NormalizedDrug = {
   normalizedName: string | null;
 };
 
-type RxNormApproximateResponse = {
-  approximateGroup?: {
-    candidate?: Array<{ rxcui: string; name?: string }>;
-  };
-};
-
-export async function normalizeDrugName(
-  name: string
-): Promise<NormalizedDrug> {
+export async function normalizeDrugName(name: string): Promise<NormalizedDrug> {
   const trimmed = name.trim();
-  if (!trimmed) {
-    return { originalName: name, rxcui: null, normalizedName: null };
-  }
-
-  const url = `${RXNORM_BASE}/Prescribe/rxcui.json?name=${encodeURIComponent(
-    trimmed
-  )}&search=2`;
+  if (!trimmed) return { originalName: name, rxcui: null, normalizedName: null };
 
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) {
-      return { originalName: name, rxcui: null, normalizedName: null };
+    // A RxNorm Approximate Match é ótima para lidar com erros de digitação ou nomes comerciais
+    const url = `${RXNORM_BASE}/approximateTerm.json?term=${encodeURIComponent(trimmed)}&maxEntries=1`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    
+    if (!res.ok) throw new Error("Falha na API RxNorm");
+    
+    const data = await res.json();
+    const candidate = data?.approximateGroup?.candidate?.[0];
+    
+    if (candidate?.rxcui) {
+      return {
+        originalName: name,
+        rxcui: candidate.rxcui,
+        normalizedName: candidate.name || trimmed,
+      };
     }
-    const data: RxNormApproximateResponse = await res.json();
-    const first = data?.approximateGroup?.candidate?.[0];
-    if (!first?.rxcui) {
-      return { originalName: name, rxcui: null, normalizedName: null };
-    }
-    return {
-      originalName: name,
-      rxcui: first.rxcui,
-      normalizedName: first.name ?? null,
-    };
-  } catch {
-    // timeout, CORS ou rede instável
-    return { originalName: name, rxcui: null, normalizedName: null };
+  } catch (err) {
+    console.warn(`[RxNorm] Falha ao normalizar ${name}`, err);
   }
+
+  // Se falhar, retorna o original
+  return { originalName: name, rxcui: null, normalizedName: name };
 }
 
-export async function normalizeDrugList(
-  names: string[]
-): Promise<NormalizedDrug[]> {
-  // RxNorm rate limit: ~2 req/s → sequencial com pequeno delay
+export async function normalizeDrugList(names: string[]): Promise<NormalizedDrug[]> {
+  // Roda em paralelo para não demorar, mas com limite de 5 por vez para não sobrecarregar
   const results: NormalizedDrug[] = [];
-  for (const name of names) {
-    results.push(await normalizeDrugName(name));
-    await new Promise((r) => setTimeout(r, 500));
+  const chunks = [];
+  
+  for (let i = 0; i < names.length; i += 5) {
+    chunks.push(names.slice(i, i + 5));
   }
+
+  for (const chunk of chunks) {
+    const chunkResults = await Promise.all(chunk.map(normalizeDrugName));
+    results.push(...chunkResults);
+  }
+
   return results;
 }
