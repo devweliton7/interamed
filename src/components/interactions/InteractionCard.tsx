@@ -12,8 +12,17 @@ const severityStyles = {
 export function InteractionCard({ item }: { item: InteractionResult }) {
   const style = severityStyles[item.severity] ?? severityStyles.nao_verificada;
 
-  // Não renderiza nada se não for um alerta real
   if (item.severity === "sem_interacao") return null;
+
+  // 🔑 Extrai o texto principal da bula para não poluir o card
+  let displayDescription = item.description;
+  if (displayDescription.includes("Interação detectada na bula")) {
+    const match = displayDescription.match(/"\.\.\.(.*?)\.\.\."/);
+    if (match && match[1]) {
+      const trecho = match[1].trim();
+      displayDescription = `Alerta na bula: ${trecho.charAt(0).toUpperCase() + trecho.slice(1)}.`;
+    }
+  }
 
   return (
     <div className={`relative mt-2 overflow-hidden rounded-2xl border-l-[3px] ${style.border} ${style.bg} p-3.5 transition-all`}>
@@ -27,7 +36,7 @@ export function InteractionCard({ item }: { item: InteractionResult }) {
       </div>
 
       <p className="text-xs text-gray-700 leading-relaxed font-medium mt-1">
-        {item.description}
+        {displayDescription}
       </p>
 
       {item.recommendation && (
