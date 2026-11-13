@@ -18,7 +18,9 @@ export const MEDS = [
   "Norepinefrina", "Norfloxacino", "Ondansetrona", "Oxacilina",
   "Pantoprazol", "Penicilina", "Propofol", "Ranitidina", "Rivaroxabana",
   "Rosuvastatina", "Salbutamol", "Sertralina", "Simeticona", "Sulfametoxazol",
-  "Tramadol", "Trimetoprima", "Vancomicina", "Zolpidem"
+  "Tramadol", "Trimetoprima", "Vancomicina", "Zolpidem",
+  // Adicionados para o teste:
+  "Acetato De Medroxiprogesterona"
 ];
 
 export const SINONIMOS: Record<string, string> = {
@@ -56,6 +58,9 @@ const RAW: [string, string, Info][] = [
   ["Metformina", "Dexametasona", { severity: "leve", desc: "Pode elevar a glicemia.", rec: "Monitorar glicemia capilar." }],
   ["Sinvastatina", "Anlodipino", { severity: "leve", desc: "Aumenta nível de sinvastatina.", rec: "Observar dor muscular." }],
   ["Furosemida", "Dexametasona", { severity: "leve", desc: "Pode baixar o potássio.", rec: "Monitorar potássio." }],
+  
+  // 🔑 NOVA INTERAÇÃO ADICIONADA:
+  ["Acetato De Medroxiprogesterona", "Varfarina", { severity: "moderada", desc: "Risco aumentado de eventos trombóticos e alteração no efeito anticoagulante.", rec: "Monitorar sinais de trombose e INR." }],
 ];
 
 const MAP = new Map(RAW.map(([a, b, i]) => [key(a, b), i]));

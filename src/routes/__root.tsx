@@ -1,3 +1,4 @@
+// src/routes/__root.tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -9,10 +10,8 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
-
 import appCss from "../styles.css?url";
 
-// Tela de "Não Encontrado" (404)
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F9F9F9] px-6">
@@ -35,7 +34,6 @@ function NotFoundComponent() {
   );
 }
 
-// Tela de Erro - AGORA COM DEBUG DETALHADO
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error("ERRO CAPTURADO PELO ROOT:", error);
   const router = useRouter();
@@ -43,14 +41,11 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F9F9F9] px-6 py-12">
       <div className="max-w-2xl w-full text-center">
-        <h1 className="text-xl font-bold tracking-tight text-black">
-          Ops, algo deu errado
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight text-black">Ops, algo deu errado</h1>
         <p className="mt-2 text-sm font-medium text-gray-500">
           Ocorreu um erro inesperado no sistema.
         </p>
         
-        {/* Bloco de debug com o erro real */}
         <div className="mt-6 text-left bg-white border border-red-200 rounded-xl p-4 shadow-sm overflow-auto">
           <p className="text-xs font-bold text-red-600 mb-1 uppercase tracking-wider">Mensagem do Erro:</p>
           <pre className="text-xs text-gray-800 font-mono bg-gray-50 p-3 rounded-lg whitespace-pre-wrap break-words">
@@ -102,10 +97,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" },
       { rel: "icon", href: "data:," },

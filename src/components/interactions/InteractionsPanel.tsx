@@ -1,11 +1,10 @@
-// src/components/InteractionsPanel.tsx
-
-import { useInteractions } from "../hooks/useInteractions";
-import { InteractionCard } from "./interactions/InteractionCard";
-import { InteractionBadge } from "./interactions/InteractionBadge";
+// src/components/interactions/InteractionsPanel.tsx
+import { useInteractions } from "../../hooks/useInteractions";
+import { InteractionCard } from "./InteractionCard";
+import { Loader2 } from "lucide-react";
 
 export function InteractionsPanel({ selectedDrugs }: { selectedDrugs: string[] }) {
-  const { data, loading, error, refetch } = useInteractions(selectedDrugs);
+  const { interactionsData, loadingInteractions, error } = useInteractions(selectedDrugs);
 
   if (selectedDrugs.length < 2) {
     return (
@@ -21,33 +20,30 @@ export function InteractionsPanel({ selectedDrugs }: { selectedDrugs: string[] }
         <h2 className="text-lg font-semibold text-gray-900">
           Interações medicamentosas
         </h2>
-        <button
-          onClick={refetch}
-          className="rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Atualizar
-        </button>
       </div>
 
-      {loading && (
-        <p className="text-sm text-gray-500">Consultando bases de interação…</p>
+      {loadingInteractions && (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Consultando bases de interação…
+        </div>
       )}
 
       {error && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          {error}
+          {error.message || "Erro ao carregar interações."}
         </div>
       )}
 
-      {data && data.length > 0 && (
+      {interactionsData && interactionsData.length > 0 && (
         <div className="space-y-3">
-          {data.map((item, idx) => (
+          {interactionsData.map((item, idx) => (
             <InteractionCard key={`${item.drugA}-${item.drugB}-${idx}`} item={item} />
           ))}
         </div>
       )}
 
-      {data && data.length === 0 && !loading && (
+      {interactionsData && interactionsData.length === 0 && !loadingInteractions && (
         <p className="text-sm text-gray-500">
           Nenhum par de medicamentos para verificar.
         </p>
