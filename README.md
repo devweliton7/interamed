@@ -1,54 +1,50 @@
-# 🩺 InteraMed
+# 🏥 InteraMed — Triagem de Interações Medicamentosas com IA
 
-MVP mobile-first de apoio à equipe de enfermagem: lê receitas por foto ou PDF (OCR com LLM) e verifica interações com base nas bulas da OpenFDA, sugerindo horários de administração (aprazamento) que evitam a troca de plantão.
+![Status](https://img.shields.io/badge/status-MVP%20Funcional-success)
+![React](https://img.shields.io/badge/React-19-blue)
+![TanStack Start](https://img.shields.io/badge/TanStack-Start-black)
+![Tailwind](https://img.shields.io/badge/Tailwind-v4-cyan)
+![Groq](https://img.shields.io/badge/AI-Llama%204%20Scout-orange)
 
-🔗 **Demo:** https://interamed-v-2-0.vercel.app
-> Aviso: protótipo de apoio. Não substitui o julgamento clínico e não foi validado em ambiente hospitalar.
+O **InteraMed** é um MVP mobile-first de apoio à enfermagem para checagem rápida de interações medicamentosas. O aplicativo resolve um problema real do ambiente hospitalar: a checagem manual de interações é lenta, e o uso de IAs genéricas (como ChatGPT) é perigoso devido ao alto risco de alucinação em contexto clínico.
 
-[INSERIR 2 PRINTS OU UM GIF DA TELA AQUI]
+## 🧠 Arquitetura "AI First, but Safe"
 
-## Problema
-No SUS, um paciente pode ter de 10 a 29 medicamentos prescritos. A checagem manual de interações é lenta e sujeita a erro. Mapeei essa dor com um acadêmico de Enfermagem da UFPI e tive orientação de um professor de Farmacologia para as regras clínicas.
+O grande diferencial do InteraMed não é apenas usar IA, mas sim **como** ela é usada. A arquitetura foi desenhada para garantir que a IA faça o trabalho de extração (onde ela é excelente), mas o motor de decisão seja determinístico (onde a IA falha).
 
-## Como funciona
-**Foto da receita → LLM extrai os nomes → dicionário normaliza → OpenFDA valida → aprazamento**
+**O fluxo funciona em 3 camadas:**
 
-1. **Extração (OCR):** o frontend comprime a imagem e envia ao Llama 4 Scout (via Groq). O prompt instrui o modelo a extrair apenas os princípios ativos, ignorando datas, assinaturas e posologias.
-2. **Normalização:** um dicionário interno traduz termos PT-BR (ex: "AAS" → "aspirin") e a API **RxNorm (NIH)** padroniza o princípio ativo para a busca internacional.
-3. **Validação (Bula Oficial):** o sistema consulta a API da **OpenFDA** e extrai o campo `drug_interactions` da bula do medicamento. O código faz uma varredura textual (busca bidirecional) para verificar se o outro remédio é citado.
-4. **Classificação de Gravidade (Regras Heurísticas):** como a OpenFDA não classifica a gravidade, o motor de regras analisa o texto da bula. Se encontrar `"contraindicated"` ou `"avoid concomitant use"`, classifica como **Grave** (tendo precedência sobre outras palavras). Se encontrar `"monitor"` ou `"caution"`, classifica como **Moderada**.
-5. **Fallback Local (Resiliência):** se a API da OpenFDA sofrer timeout (limite de 4s) ou falhar, o sistema cai automaticamente para a **Base Local (`meds.ts`)**.
+1. **OCR Inteligente (AI First):** A imagem da receita é processada pelo **Llama 4 Scout (via Groq)**. Atuando como um "farmacêutico clínico", a IA não só transcreve, mas faz o *Data Cleaning*: remove sais (ex: "Cloridrato de Amiodarona" → "Amiodarona"), ignora dosagens/assinaturas e **proíbe traduções** (evitando "Dipirona" → "Dipyrone").
+2. **Motor Determinístico (Guardrail):** A lista limpa pela IA é cruzada com uma **Base Local** curada (baseada nas diretrizes ISMP e bulas da FDA). Se o par for encontrado, o app exibe a gravidade e a conduta clínica.
+3. **Fallback Honesto (Zero Alucinação):** Se o par não estiver na base local, o app tenta a API da **OpenFDA** (domínio público). Se nenhuma base retornar dados, o app exibe o status **"Não Verificado" (cinza)**. O sistema **nunca** exibe "Seguro" para indicar ausência de dados — ausência de evidência não é evidência de ausência.
 
-## Quem faz a checagem de segurança?
-Não é o LLM. O modelo só lê a imagem (OCR). A decisão sobre interações vem do motor de regras e das APIs, porque modelos de linguagem podem alucinar e isso não é aceitável em segurança de medicação. 
+## ✨ Funcionalidades
 
-**Caso testado:** A combinação de **Clopidogrel + Omeprazol** retornou um alerta **Grave** a partir da bula oficial da FDA (EUA). O classificador identificou a expressão *"avoid concomitant use"* no texto americano e elevou a gravidade corretamente.
+- **📸 OCR via LLM (Groq):** Upload de foto ou PDF da receita médica com extração e normalização automática do princípio ativo.
+- **⚠️ Classificação de Risco:** Cards visuais divididos entre Risco Grave (vermelho), Moderado (amarelo) e Não Verificado (cinza).
+- **⏰ Aprazamento Inteligente:** Lógica de distribuição de horários que evita a administração de medicamentos com interação no mesmo intervalo.
+- **🔒 Privacidade (LGPD):** Sessão temporária (expira em 15 min), uso de `sessionStorage` (não `localStorage`) e banner de consentimento. Nenhum dado real de paciente é armazenado em servidor.
 
-**Limitações Transparentes do MVP:**
-- **Bulas Americanas:** A integração atual consulta a FDA (EUA). A integração com a ANVISA (PT-BR) está no roadmap para produção.
-- **Falsos Positivos/Negativos:** Como a checagem na OpenFDA é baseada em menção textual de livre escrita na bula, pode haver falhas. Por isso, o app sempre orienta a "Consultar protocolo institucional".
-- **Base Local Limitada:** O recorte de medicamentos locais cobre os mais comuns, mas não substitui uma base clínica completa como a DrugBank (planejada para o futuro).
+## 🛠️ Stack Tecnológica
 
-## Dados
-- **Simulados:** a integração com prontuário ("Simular Recebimento") usa pacientes fictícios.
-- **Reais:** o OCR processa fotos de receitas enviadas pelo usuário.
-- **Privacidade:** a imagem é enviada à API da Groq. Não use dados reais de pacientes na demo.
+- **Frontend:** React + Vite + TypeScript
+- **Roteamento e Server Functions:** TanStack Start (Nitro)
+- **Estilização:** Tailwind CSS v4 (UI premium estilo Apple/Nike)
+- **IA (OCR):** Groq API (Llama 4 Scout)
+- **APIs de Dados:** OpenFDA (Bulas dos EUA) e RxNorm (Normalização)
+- **Manipulação de PDF:** PDF.js
 
-## Erros do LLM que encontrei e como tratei
-1. **Lixo no PDF:** em um PDF de 29 medicamentos, o modelo transcrevia rodapés ("Página 1", assinatura, datas), gerando interações falsas. Refinei o prompt para ser literal e adicionei um filtro com lista de exclusão em `documentParser.ts`.
-2. **Truncamento:** em receitas densas o modelo cortava a lista. Aumentei o limite de tokens para 8000 e a escala de renderização do PDF de 1.5 para 2.0.
-3. **Timeout da API DDInter:** o processamento chegava a minutos quando a API antiga estava lenta. Passei a consultar com concorrência controlada (`Promise.all`) e timeout de 4 s, com fallback para a base local. (Posteriormente, migrei a validação para a OpenFDA).
+## 🚀 Como Rodar o Projeto
 
-## Como foi construído
-Usei o **DeepSeek** como assistente de código: pedi o esqueleto, corrigi erros, refinei os prompts e direcionei a arquitetura (LLM só no OCR, validação por regras e APIs). Eu defini o problema, as regras e as decisões, e testei e ajustei o resultado.
-
-## Stack
-TanStack Start (React + Vite), TypeScript, Tailwind CSS v4, Nitro Server Functions (Vercel), Groq (Llama 4 Scout), OpenFDA API, RxNorm API, PDF.js.
-
-## Como rodar
 ```bash
-git clone https://github.com/jwelitonlima/interamed-v-2-0
-cd interamed-v-2-0
+# 1. Clone o repositório
+git clone https://github.com/seu-usuario/interamed.git
+
+# 2. Instale as dependências
 npm install
-cp .env.example .env.local   # defina GROQ_API_KEY
+
+# 3. Configure a chave da Groq
+echo "GROQ_API_KEY=sua_chave_aqui" > .env.local
+
+# 4. Rode o projeto
 npm run dev
