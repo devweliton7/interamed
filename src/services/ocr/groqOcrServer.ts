@@ -24,25 +24,28 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
           messages: [
             {
               role: "system",
-              content: "Você é um farmacêutico clínico brasileiro. Sua função é ler a imagem e retornar APENAS os princípios ativos dos medicamentos. Você NUNCA traduz nomes para o inglês. Você mantém os nomes exatamente em Português do Brasil, removendo apenas sais (ex: Cloridrato, Sódica) e marcas."
+              content: `Você é um sistema de OCR de receitas médicas brasileiro. 
+Sua única função é transcrever o texto da imagem para JSON.
+Você NÃO É UM TRADUTOR. Você NÃO É UM MÉDICO. Você NÃO DEVE TRADUZIR NADA.
+
+DICIONÁRIO DE PROIBIÇÃO (NUNCA USE ESTES TERMOS):
+- NUNCA retorne "dipyrone". Use sempre "Dipirona".
+- NUNCA retorne "aspirin". Use sempre "AAS" ou "Ácido Acetilsalicílico".
+- NUNCA retorne termos em inglês.
+
+REGRAS DE EXTRAÇÃO:
+1. Se a imagem tiver "Cloridrato de Amiodarona", retorne "Amiodarona".
+2. Se a imagem tiver "Dipirona Sódica", retorne "Dipirona".
+3. Se for um nome que não está no dicionário, retorne EXATAMENTE como está escrito na imagem, em português.
+4. Ignore datas, assinaturas, dosagens (mg) e posologias.
+5. Retorne APENAS JSON no formato: { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }`
             },
             {
               role: "user",
               content: [
                 { 
                   type: "text", 
-                  text: `Transcreva os medicamentos da imagem.
-
-                  REGRAS ESTRITAS (VIOLAR É ERRO CRÍTICO):
-                  1. Extraia APENAS o nome do princípio ativo em PORTUGUÊS.
-                  2. NUNCA TRADUZA para o inglês (Ex: Não traduza "Dipirona" para "Dipyrone").
-                  3. REMOVA SAIS: "Cloridrato de Amiodarona" -> "Amiodarona"; "Dipirona Sódica" -> "Dipirona".
-                  4. REMOVA MARCAS: "Tylenol" -> "Paracetamol".
-                  5. IGNORE: Assinaturas, datas, CPFs, dosagens (mg), posologias (1 comprimido).
-                  6. Se você ler "Cloridrato de Amiodarona", retorne "Amiodarona". Não invente.
-                  
-                  Retorne APENAS neste formato JSON:
-                  { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }`
+                  text: "Transcreva os medicamentos desta imagem para JSON. Lembre-se: PROIBIDO TRADUZIR. Se ler Dipirona, escreva Dipirona."
                 },
                 { 
                   type: "image_url", 
