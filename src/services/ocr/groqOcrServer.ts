@@ -24,20 +24,24 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
           messages: [
             {
               role: "system",
-              content: "Você é um transcritor de receitas médicas. Sua função é ler a imagem e retornar APENAS os nomes dos medicamentos listados na coluna principal de prescrição. Você deve ser burro e literal: se não for um nome de medicamento, você não transcreve."
+              content: "Você é um farmacêutico clínico e transcritor de receitas médicas. Sua função é ler a imagem e retornar APENAS os princípios ativos dos medicamentos listados na coluna principal de prescrição. Você deve ser literal quanto ao princípio ativo, mas inteligente o suficiente para ignorar sais, marcas e dosagens."
             },
             {
               role: "user",
               content: [
                 { 
                   type: "text", 
-                  text: `Transcreva a lista de medicamentos da imagem.
-                  
+                  text: `Transcreva a lista de medicamentos da imagem e normalize os nomes.
+
                   REGRAS ESTRITAS (VIOLAR É ERRO CRÍTICO):
-                  1. Extraia APENAS o nome do princípio ativo/medicamento (ex: "Dipirona").
+                  1. Extraia APENAS o nome do princípio ativo/medicamento.
                   2. IGNORE COMPLETAMENTE: Assinaturas, carimbos, datas, CPFs, nomes de médicos, cabeçalhos de hospital, e rodapés (ex: "Página 1", "Sistema X").
                   3. IGNORE posologias ("1 comprimido", "8/8h"), vias ("VO", "EV") e quantidades.
-                  4. Retorne APENAS no formato JSON: 
+                  4. NORMALIZAÇÃO FARMACÊUTICA: Remova sais, formas farmacêuticas e nomes de marcas.
+                     - Exemplo: "Cloridrato de Amiodarona 200mg" -> "Amiodarona"
+                     - Exemplo: "Dipirona Sódica 500mg" -> "Dipirona"
+                     - Exemplo: "Tylenol" -> "Paracetamol"
+                  5. Retorne APENAS no formato JSON: 
                   { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }
                   
                   Se não for uma receita:
