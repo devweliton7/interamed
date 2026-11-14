@@ -24,28 +24,19 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
           messages: [
             {
               role: "system",
-              content: `Você é um sistema de OCR de receitas médicas brasileiro. 
-Sua única função é transcrever o texto da imagem para JSON.
-Você NÃO É UM TRADUTOR. Você NÃO É UM MÉDICO. Você NÃO DEVE TRADUZIR NADA.
-
-DICIONÁRIO DE PROIBIÇÃO (NUNCA USE ESTES TERMOS):
-- NUNCA retorne "dipyrone". Use sempre "Dipirona".
-- NUNCA retorne "aspirin". Use sempre "AAS" ou "Ácido Acetilsalicílico".
-- NUNCA retorne termos em inglês.
-
-REGRAS DE EXTRAÇÃO:
-1. Se a imagem tiver "Cloridrato de Amiodarona", retorne "Amiodarona".
-2. Se a imagem tiver "Dipirona Sódica", retorne "Dipirona".
-3. Se for um nome que não está no dicionário, retorne EXATAMENTE como está escrito na imagem, em português.
-4. Ignore datas, assinaturas, dosagens (mg) e posologias.
-5. Retorne APENAS JSON no formato: { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }`
+              content: `Você é um OCR de receitas médicas. Sua tarefa é ler a imagem INTEIRA, de cima para baixo, e retornar os medicamentos. 
+Você NÃO TRADUZ para inglês. 
+Se ler "Cloridrato de Amiodarona", retorne "Amiodarona". 
+Se ler "Dipirona Sódica", retorne "Dipirona". 
+Se ler "Dipirona", retorne "Dipirona".
+Retorne o JSON: { "medicamentos": ["...", "..."] }`
             },
             {
               role: "user",
               content: [
                 { 
                   type: "text", 
-                  text: "Transcreva os medicamentos desta imagem para JSON. Lembre-se: PROIBIDO TRADUZIR. Se ler Dipirona, escreva Dipirona."
+                  text: "Leia TODOS os itens da lista de prescrição, do primeiro ao último. Extraia o princípio ativo (sem sais). Não traduza para inglês."
                 },
                 { 
                   type: "image_url", 

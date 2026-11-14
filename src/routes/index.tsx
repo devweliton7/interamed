@@ -89,13 +89,17 @@ function Index() {
   
   const remove = (m: string) => setSelected((s) => s.filter((x) => x !== m));
   const clearAll = () => setSelected([]);
-  const handleOcrExtract = (meds: string[]) => setSelected(prev => Array.from(new Set([...prev, ...meds])));
+  
+  // 🔑 CORREÇÃO: Substitui o estado em vez de acumular com o lixo antigo
+  const handleOcrExtract = (meds: string[]) => {
+    setSelected(meds);
+  };
+  
   const verify = () => setStep("results");
 
   const getCounts = () => {
     if (!interactionsData) return { grave: 0, moderada: 0, leve: 0, nao_verificada: 0 };
     
-    // Deduplica por par único (evita contar A+B e B+A duas vezes)
     const seen = new Set<string>();
     const unique = interactionsData.filter((i) => {
       const key = [i.drugA, i.drugB].sort().join("|");
@@ -239,7 +243,6 @@ function Index() {
                       ? (counts.moderada === 1 ? "Cuidado: 1 Interação Moderada" : `Cuidado: ${counts.moderada} Interações Moderadas`)
                       : counts.leve > 0
                         ? (counts.leve === 1 ? "Atenção: 1 Interação Leve" : `Atenção: ${counts.leve} Interações Leves`)
-                        // NOVA REGRA: Se não há riscos, mas há dados não verificados, avisa no título
                         : counts.nao_verificada > 0
                           ? "Análise Incompleta"
                           : "Prescrição Segura"
