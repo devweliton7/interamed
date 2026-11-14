@@ -11,31 +11,29 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 const strip = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-/**
- * 🔑 PENEIRA FINA: Usa sinônimos e rejeita qualquer palavra que não seja EXATAMENTE um remédio.
- */
 function extrairMedicamentosEstritos(listaBruta: string[]): string[] {
   const medsEncontrados = new Set<string>();
-  
-  // Normaliza a lista bruta da IA
   const palavrasLimpas = listaBruta.map(p => strip(p));
 
   palavrasLimpas.forEach(palavra => {
-    // 1. Verifica se a palavra é um sinônimo direto (ex: "aas" -> "ácido acetilsalicílico")
+    // 1. Verifica se a palavra é um sinônimo direto (ex: "cloridrato de amiodarona" -> "Amiodarona")
     if (SINONIMOS[palavra]) {
       medsEncontrados.add(SINONIMOS[palavra]);
       return;
     }
 
-    // 2. Procura na base oficial
+    // 2. Procura na base oficial de forma inteligente
     const match = MEDS.find(med => {
       const medNormalizado = strip(med);
-      // Aceita apenas se a palavra for IGUAL ou tiver uma correspondência muito forte
-      return palavra === medNormalizado || palavra.includes(medNormalizado);
+      // Se a IA retornar "amiodarona", ele bate com o "amiodarona" que adicionamos no MEDS
+      return (
+        palavra === medNormalizado || 
+        palavra.includes(medNormalizado) || 
+        medNormalizado.includes(palavra)
+      );
     });
 
     if (match) {
-      // Garante que não vamos adicionar duplicatas (ex: AAS e Ácido Acetilsalicílico)
       const jaTem = Array.from(medsEncontrados).some(m => strip(m).includes(strip(match)) || strip(match).includes(strip(m)));
       if (!jaTem) medsEncontrados.add(match);
     }
@@ -74,12 +72,10 @@ export async function processarDocumento(file: File): Promise<string[]> {
 
     const nativosEncontrados = extrairMedicamentosEstritos(textoNativoCompleto.split(/\s+/));
     
-    // Se o PDF nativo encontrou MUITOS remédios (ex: > 15), ele é confiável.
     if (nativosEncontrados.length >= 15) {
       return nativosEncontrados;
     }
 
-    // Usa a IA na imagem se o nativo falhar
     const todosEncontrados = new Set<string>(nativosEncontrados);
 
     for (let i = 1; i <= pdf.numPages; i++) {
