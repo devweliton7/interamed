@@ -24,28 +24,25 @@ export const extrairTextoComGroq = createServerFn({ method: "POST" })
           messages: [
             {
               role: "system",
-              content: "Você é um farmacêutico clínico e transcritor de receitas médicas. Sua função é ler a imagem e retornar APENAS os princípios ativos dos medicamentos listados na coluna principal de prescrição. Você deve ser literal quanto ao princípio ativo, mas inteligente o suficiente para ignorar sais, marcas e dosagens."
+              content: "Você é um farmacêutico clínico brasileiro. Sua função é ler a imagem e retornar APENAS os princípios ativos dos medicamentos. Você NUNCA traduz nomes para o inglês. Você mantém os nomes exatamente em Português do Brasil, removendo apenas sais (ex: Cloridrato, Sódica) e marcas."
             },
             {
               role: "user",
               content: [
                 { 
                   type: "text", 
-                  text: `Transcreva a lista de medicamentos da imagem e normalize os nomes.
+                  text: `Transcreva os medicamentos da imagem.
 
                   REGRAS ESTRITAS (VIOLAR É ERRO CRÍTICO):
-                  1. Extraia APENAS o nome do princípio ativo/medicamento.
-                  2. IGNORE COMPLETAMENTE: Assinaturas, carimbos, datas, CPFs, nomes de médicos, cabeçalhos de hospital, e rodapés (ex: "Página 1", "Sistema X").
-                  3. IGNORE posologias ("1 comprimido", "8/8h"), vias ("VO", "EV") e quantidades.
-                  4. NORMALIZAÇÃO FARMACÊUTICA: Remova sais, formas farmacêuticas e nomes de marcas.
-                     - Exemplo: "Cloridrato de Amiodarona 200mg" -> "Amiodarona"
-                     - Exemplo: "Dipirona Sódica 500mg" -> "Dipirona"
-                     - Exemplo: "Tylenol" -> "Paracetamol"
-                  5. Retorne APENAS no formato JSON: 
-                  { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }
+                  1. Extraia APENAS o nome do princípio ativo em PORTUGUÊS.
+                  2. NUNCA TRADUZA para o inglês (Ex: Não traduza "Dipirona" para "Dipyrone").
+                  3. REMOVA SAIS: "Cloridrato de Amiodarona" -> "Amiodarona"; "Dipirona Sódica" -> "Dipirona".
+                  4. REMOVA MARCAS: "Tylenol" -> "Paracetamol".
+                  5. IGNORE: Assinaturas, datas, CPFs, dosagens (mg), posologias (1 comprimido).
+                  6. Se você ler "Cloridrato de Amiodarona", retorne "Amiodarona". Não invente.
                   
-                  Se não for uma receita:
-                  { "status": "erro", "mensagem": "Documento inválido." }`
+                  Retorne APENAS neste formato JSON:
+                  { "status": "sucesso", "medicamentos": ["Nome1", "Nome2"] }`
                 },
                 { 
                   type: "image_url", 
