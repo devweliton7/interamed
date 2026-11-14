@@ -93,7 +93,7 @@ function Index() {
   const verify = () => setStep("results");
 
   const getCounts = () => {
-    if (!interactionsData) return { grave: 0, moderada: 0, leve: 0 };
+    if (!interactionsData) return { grave: 0, moderada: 0, leve: 0, nao_verificada: 0 };
     
     // Deduplica por par único (evita contar A+B e B+A duas vezes)
     const seen = new Set<string>();
@@ -108,6 +108,7 @@ function Index() {
       grave: unique.filter(i => i.severity === "grave").length,
       moderada: unique.filter(i => i.severity === "moderada").length,
       leve: unique.filter(i => i.severity === "leve").length,
+      nao_verificada: unique.filter(i => i.severity === "nao_verificada").length,
     };
   };
   
@@ -238,11 +239,18 @@ function Index() {
                       ? (counts.moderada === 1 ? "Cuidado: 1 Interação Moderada" : `Cuidado: ${counts.moderada} Interações Moderadas`)
                       : counts.leve > 0
                         ? (counts.leve === 1 ? "Atenção: 1 Interação Leve" : `Atenção: ${counts.leve} Interações Leves`)
-                        : "Prescrição Segura"
+                        // NOVA REGRA: Se não há riscos, mas há dados não verificados, avisa no título
+                        : counts.nao_verificada > 0
+                          ? "Análise Incompleta"
+                          : "Prescrição Segura"
                 )}
               </h2>
               <p className="text-sm text-gray-500 font-medium mt-1">
-                {loadingInteractions ? "Cruzando dados clínicos..." : `Análise de ${selected.length} medicamentos.`}
+                {loadingInteractions 
+                  ? "Cruzando dados clínicos..." 
+                  : counts.nao_verificada > 0 && counts.grave === 0 && counts.moderada === 0 && counts.leve === 0
+                    ? `Verificação parcial de ${selected.length} medicamentos.`
+                    : `Análise de ${selected.length} medicamentos.`}
               </p>
             </div>
             
