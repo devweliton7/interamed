@@ -1,27 +1,24 @@
 // src/services/interactions/localInteractions.ts
-import { getInteraction } from "../../lib/meds";
+import { getInteraction, type Severity } from "../../lib/meds";
 
 export type LocalInteraction = {
-  drugA: string;
-  drugB: string;
-  severity: "grave" | "moderada" | "leve" | "sem_interacao" | "nao_verificada";
+  severity: Exclude<Severity, "nenhuma" | "semdado">;
   description: string;
-  recommendation?: string;
+  recommendation: string;
+  source: string;
 };
 
-export function findLocalInteraction(drugA: string, drugB: string): LocalInteraction | null {
+export function checkLocalInteractions(drugA: string, drugB: string): LocalInteraction | null {
   const result = getInteraction(drugA, drugB);
-  
-  let mappedSeverity: LocalInteraction["severity"] = "sem_interacao";
-  if (result.severity === "semdado") mappedSeverity = "nao_verificada";
-  else if (result.severity === "nenhuma") mappedSeverity = "sem_interacao";
-  else mappedSeverity = result.severity as "grave" | "moderada" | "leve";
+
+  if (result.severity === "semdado" || result.severity === "nenhuma") {
+    return null;
+  }
 
   return {
-    drugA,
-    drugB,
-    severity: mappedSeverity,
+    severity: result.severity,
     description: result.desc,
     recommendation: result.rec,
+    source: result.source ?? "Base Local ISMP/FDA",
   };
 }

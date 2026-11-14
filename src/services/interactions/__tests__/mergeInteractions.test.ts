@@ -8,7 +8,7 @@ describe("mergeInteraction", () => {
       "Varfarina",
       "Ibuprofeno",
       { drugA: "Varfarina", drugB: "Ibuprofeno", severity: "Major", description: "Risco grave", evidenceLevel: "1" },
-      { drugA: "Varfarina", drugB: "Ibuprofeno", severity: "moderada", description: "Teste local" }
+      { severity: "moderada", description: "Teste local", recommendation: "Monitorar", source: "Teste" }
     );
     expect(result.severity).toBe("grave");
     expect(result.source).toBe("ddinter");
@@ -20,19 +20,14 @@ describe("mergeInteraction", () => {
       "Varfarina",
       "Ibuprofeno",
       null,
-      { drugA: "Varfarina", drugB: "Ibuprofeno", severity: "moderada", description: "Teste local" }
+      { severity: "moderada", description: "Teste local", recommendation: "Monitorar", source: "Teste" }
     );
     expect(result.severity).toBe("moderada");
     expect(result.source).toBe("local");
   });
 
   it("marca como não verificada quando nenhuma fonte responde", () => {
-    const result = mergeInteraction(
-      "A",
-      "B",
-      null,
-      null
-    );
+    const result = mergeInteraction("A", "B", null, null);
     expect(result.severity).toBe("nao_verificada");
     expect(result.confidence).toBe("baixa");
   });

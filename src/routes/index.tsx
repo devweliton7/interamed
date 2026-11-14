@@ -21,7 +21,6 @@ export const Route = createFileRoute("/")({
 const strip = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 function Index() {
-  // 🔑 LGPD: Ativa a expiração de sessão
   useSecureSession();
 
   const [mounted, setMounted] = useState(false);
@@ -40,7 +39,6 @@ function Index() {
   useEffect(() => {
     setMounted(true);
     try {
-      // 🔑 LGPD: Minimização de dados com sessionStorage
       const savedQuery = sessionStorage.getItem("interamed-query");
       const savedSelected = sessionStorage.getItem("interamed-selected");
       if (savedQuery) setQuery(JSON.parse(savedQuery));
@@ -96,10 +94,20 @@ function Index() {
 
   const getCounts = () => {
     if (!interactionsData) return { grave: 0, moderada: 0, leve: 0 };
+    
+    // Deduplica por par único (evita contar A+B e B+A duas vezes)
+    const seen = new Set<string>();
+    const unique = interactionsData.filter((i) => {
+      const key = [i.drugA, i.drugB].sort().join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    
     return {
-      grave: interactionsData.filter(i => i.severity === "grave").length,
-      moderada: interactionsData.filter(i => i.severity === "moderada").length,
-      leve: interactionsData.filter(i => i.severity === "leve").length,
+      grave: unique.filter(i => i.severity === "grave").length,
+      moderada: unique.filter(i => i.severity === "moderada").length,
+      leve: unique.filter(i => i.severity === "leve").length,
     };
   };
   
@@ -210,7 +218,6 @@ function Index() {
         {step === "results" && (
           <section className="animate-in fade-in slide-in-from-right-8 duration-300 pb-12">
             
-            {/* 🔑 Aviso de Sincronização solicitado e mantido no topo */}
             <div className="mb-6 rounded-2xl bg-white p-4 border border-gray-200/60 shadow-sm flex items-start gap-3">
               <div className="bg-[#F5F5F7] border border-gray-200 text-black rounded-xl w-8 h-8 flex items-center justify-center shrink-0">
                 <Terminal size={14} strokeWidth={2.5} />

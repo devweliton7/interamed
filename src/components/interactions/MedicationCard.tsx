@@ -1,5 +1,5 @@
 // src/components/interactions/MedicationCard.tsx
-import { CheckCircle2, ShieldAlert } from "lucide-react";
+import { CheckCircle2, ShieldAlert, ShieldQuestion } from "lucide-react";
 import { InteractionCard } from "./InteractionCard";
 import type { InteractionResult } from "../../services/interactions/mergeInteractions";
 
@@ -9,60 +9,101 @@ interface MedicationCardProps {
 }
 
 export function MedicationCard({ primaryDrug, interactions }: MedicationCardProps) {
-  // Filtra apenas as interações que realmente importam (ignora 'sem_interacao' e 'nao_verificada')
-  const relevantInteractions = interactions.filter(
-    (i) => (i.drugA === primaryDrug || i.drugB === primaryDrug) && 
-           i.severity !== "sem_interacao" && 
-           i.severity !== "nao_verificada"
+  // Filtra interações que envolvem este medicamento (mantém 'nao_verificada')
+  const relatedInteractions = interactions.filter(
+    (i) => i.drugA === primaryDrug || i.drugB === primaryDrug
   );
 
-  const hasWarnings = relevantInteractions.length > 0;
+  // Interações que realmente importam (grave/moderada/leve) = têm risco
+  const riskInteractions = relatedInteractions.filter(
+    (i) => i.severity === "grave" || i.severity === "moderada" || i.severity === "leve"
+  );
+
+  // Interações que não puderam ser verificadas (nem grave, nem nada)
+  const unverifiedInteractions = relatedInteractions.filter(
+    (i) => i.severity === "nao_verificada"
+  );
+
+  const hasRisk = riskInteractions.length > 0;
+  const hasUnverified = !hasRisk && unverifiedInteractions.length > 0;
+
+  // Estado do header: prioriza risco > não verificado > sem dados
+  const headerState: "risk" | "unverified" | "clean" = hasRisk
+    ? "risk"
+    : hasUnverified
+    ? "unverified"
+    : "clean";
 
   return (
     <div className="mb-3 rounded-[28px] bg-white p-5 shadow-[0_2px_12px_rgb(0,0,0,0.04)] border border-gray-100 transition-all">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {hasWarnings ? (
+          {headerState === "risk" && (
             <div className="bg-red-50 p-1.5 rounded-full shrink-0">
               <ShieldAlert className="text-red-500 w-5 h-5" strokeWidth={2.5} />
             </div>
-          ) : (
-            <div className="bg-emerald-50 p-1.5 rounded-full shrink-0">
-              <CheckCircle2 className="text-emerald-500 w-5 h-5" strokeWidth={2.5} />
+          )}
+          {headerState === "unverified" && (
+            <div className="bg-gray-100 p-1.5 rounded-full shrink-0">
+              <ShieldQuestion className="text-gray-500 w-5 h-5" strokeWidth={2.5} />
+            </div>
+          )}
+          {headerState === "clean" && (
+            <div className="bg-gray-100 p-1.5 rounded-full shrink-0">
+              <CheckCircle2 className="text-gray-400 w-5 h-5" strokeWidth={2.5} />
             </div>
           )}
           <h3 className="text-[17px] font-bold text-gray-900 tracking-tight">
             {primaryDrug}
           </h3>
         </div>
-        
-        {hasWarnings ? (
+
+        {headerState === "risk" && (
           <span className="text-[10px] font-black text-red-500 bg-red-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-            {relevantInteractions.length} Risco(s)
+            {riskInteractions.length} Risco(s)
           </span>
-        ) : (
-          <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50/50 px-3 py-1 rounded-full">
-            Seguro
+        )}
+        {headerState === "unverified" && (
+          <span className="text-[10px] font-black text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+            Não Verificado
+          </span>
+        )}
+        {headerState === "clean" && (
+          <span className="text-[10px] font-black text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+            Sem Dados
           </span>
         )}
       </div>
-      
+
       <div className="flex flex-col mt-1">
-        {hasWarnings ? (
+        {headerState === "risk" && (
           <div className="pl-9 mt-2">
-            {relevantInteractions.map((interaction, idx) => {
-              const otherDrug = interaction.drugA === primaryDrug ? interaction.drugB : interaction.drugA;
+            {riskInteractions.map((interaction, idx) => {
+              const otherDrug =
+                interaction.drugA === primaryDrug ? interaction.drugB : interaction.drugA;
               return (
-                <InteractionCard 
-                  key={`${otherDrug}-${idx}`} 
-                  item={{ ...interaction, drugB: otherDrug }} 
+                <InteractionCard
+                  key={`${otherDrug}-${idx}`}
+                  item={{ ...interaction, drugB: otherDrug }}
                 />
               );
             })}
           </div>
-        ) : (
+        )}
+
+        {headerState === "unverified" && (
+          <div className="pl-9 mt-2">
+            <p className="text-[13px] text-gray-500 font-medium leading-relaxed">
+              Não foi possível verificar interações com{" "}
+              {unverifiedInteractions.map((i) => (i.drugA === primaryDrug ? i.drugB : i.drugA)).join(", ")}.
+              Consulte o farmacêutico antes de administrar.
+            </p>
+          </div>
+        )}
+
+        {headerState === "clean" && (
           <p className="text-[13px] text-gray-400 mt-1.5 pl-9 font-medium">
-            Nenhuma interação grave identificada.
+            Nenhuma interação cadastrada nas bases consultadas. A ausência de dados não garante segurança.
           </p>
         )}
       </div>
